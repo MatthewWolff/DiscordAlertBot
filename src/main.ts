@@ -3,12 +3,14 @@ import {
     Client,
     Events,
     GatewayIntentBits,
+    Message,
     Presence,
     REST as DiscordRestClient,
     Routes,
 } from "discord.js";
 import dotenv from "dotenv";
-import { InteractionHandler, PresenceUpdateHandler } from "./handler";
+import { InteractionHandler, MessageHandler, PresenceUpdateHandler } from "./handler";
+import { EVENT_MESSAGE } from "./constants";
 
 dotenv.config();
 
@@ -20,6 +22,7 @@ class DiscordAlertBot {
     private discordRestClient: DiscordRestClient;
     private interactionHandler: InteractionHandler;
     private presenceUpdateHandler: PresenceUpdateHandler;
+    private messageHandler: MessageHandler;
 
     constructor() {
         this.client = new Client({
@@ -35,8 +38,9 @@ class DiscordAlertBot {
             failIfNotExists: false,
         });
         this.discordRestClient = new DiscordRestClient().setToken(DISCORD_ACCESS_TOKEN);
-        this.interactionHandler = new InteractionHandler();
+        this.interactionHandler = new InteractionHandler(this.client);
         this.presenceUpdateHandler = new PresenceUpdateHandler(this.client);
+        this.messageHandler = new MessageHandler(this.client);
     }
 
     start() {
@@ -65,13 +69,16 @@ class DiscordAlertBot {
 
     addClientEventHandlers() {
         this.client.on(Events.InteractionCreate, (interaction) => {
-            this.interactionHandler.handleInteraction(
-                interaction as ChatInputCommandInteraction
-            );
+            this.interactionHandler.handleInteraction(interaction as ChatInputCommandInteraction);
         });
 
         this.client.on(Events.PresenceUpdate, (presenceUpdate: Presence) => {
             this.presenceUpdateHandler.handlePresenceUpdate(presenceUpdate);
+        });
+
+        // note: does not work yet
+        this.client.on(EVENT_MESSAGE, (message: Message) => {
+            this.messageHandler.handleMessage(message);
         });
 
         this.client.on(Events.ClientReady, () => {

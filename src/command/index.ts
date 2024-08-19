@@ -1,10 +1,5 @@
-import { ChatInputCommandInteraction, SlashCommandBuilder } from "discord.js";
+import { Command } from './command'
+import { PingCommand } from './ping'
+import { ReplyCommand } from './reply'
 
-export interface Command {
-    name: string;
-    description?: string;
-
-    slashCommandConfig: SlashCommandBuilder;
-
-    execute(interaction: ChatInputCommandInteraction): Promise<any>;
-}
+export { Command, PingCommand, ReplyCommand }

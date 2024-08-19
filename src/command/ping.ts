@@ -1,5 +1,5 @@
 import { CacheType, ChatInputCommandInteraction, SlashCommandBuilder, } from "discord.js";
-import { Command } from "..";
+import { Command } from "./command";
 
 export class PingCommand implements Command {
     name = "ping";
@@ -8,9 +8,7 @@ export class PingCommand implements Command {
         .setName(this.name)
         .setDescription(this.description);
 
-    async execute(
-        interaction: ChatInputCommandInteraction<CacheType>
-    ): Promise<any> {
+    async execute(interaction: ChatInputCommandInteraction<CacheType>): Promise<any> {
         return interaction.reply(":3");
     }
 }
