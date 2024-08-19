@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "experimentalDecorators": true, // Enable experimental support for TypeScript decorators
+    "skipLibCheck": true, // Skip type checking of declaration files (*.d.ts)
+    "target": "es6", // Specify the ECMAScript target version (ES6 in this case)
+    "module": "commonjs", // Specify the module system for generated code (CommonJS for Node.js)
+    "moduleResolution": "node", // Specify how module resolution should be done (Node.js-style resolution)
+    "allowJs": true, // Allow JavaScript files to be included in the TypeScript project
+    "resolveJsonModule": true, // Enable importing JSON modules directly in TypeScript files
+    "esModuleInterop": true, // Allow using CommonJS-style imports in ES6 modules
+    "outDir": "./build", // Specify the output directory for compiled JavaScript files
+    "rootDir": "src" // Specify the root directory of TypeScript source files
+  },
+  "include": ["src/**/*"], // Specify the files or patterns to include in the compilation
+  "exclude": ["node_modules"] // Specify the files or patterns to exclude from the compilation
+}
