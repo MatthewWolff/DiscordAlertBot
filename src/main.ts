@@ -13,6 +13,7 @@ import dotenv from "dotenv";
 
 import { InteractionHandler, MessageHandler, PresenceUpdateHandler } from "./handler";
 import { getLogger } from "./util";
+import {MessageCore} from "./model";
 
 dotenv.config();
 
@@ -33,7 +34,10 @@ class DiscordAlertBot {
             intents: [
                 GatewayIntentBits.Guilds,
                 GatewayIntentBits.GuildPresences,
+                GatewayIntentBits.GuildMessages,
+                GatewayIntentBits.GuildMessageTyping,
                 GatewayIntentBits.DirectMessages,
+                GatewayIntentBits.DirectMessageTyping,
             ],
             partials: [Partials.Channel], // for DMs
             shards: "auto",

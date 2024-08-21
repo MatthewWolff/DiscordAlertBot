@@ -4,7 +4,7 @@ import { ActivityType } from 'discord-api-types/v10';
 import { DESKTOP, STATUS_ONLINE } from "../config/constants";
 import userAlerts from '../config/userAlerts.json'
 import { BaseHandler } from "./baseHandler";
-import { getLogger } from "../util";
+import { discordToString, getLogger } from "../util";
 
 const logger = getLogger("handler.PresenceUpdateHandler")
 
@@ -17,7 +17,7 @@ export class PresenceUpdateHandler extends BaseHandler {
         const latestActivity: string = this.getLatestActivity(presence.activities)
 
         if (!latestActivity) {
-            logger.trace(`User ${user.username} has empty activity - ${JSON.stringify(presence)}`)
+            logger.debug(`User ${user.username} has empty activity - ${JSON.stringify(presence, null, 2)}`)
             return;
         }
 
@@ -35,7 +35,7 @@ export class PresenceUpdateHandler extends BaseHandler {
                 if (games.includes(latestActivity)) {
                     this.getUser(userId).then(usr => {
                         usr.send(`Hey, ${user.globalName} is playing ${latestActivity}!`)
-                            .then(() => logger.info(`Messaged ${usr.username}`))
+                            .then(() => logger.info(`Alerted ${usr.username}`))
                             .catch(() => {
                                 logger.error(`User ${user.username} has DMs closed or has no mutual servers with the bot :(`);
                             });
@@ -46,7 +46,7 @@ export class PresenceUpdateHandler extends BaseHandler {
     }
 
     private getLatestActivity(activities: ReadonlyArray<Activity>): string {
-        logger.trace(`ACTIVITIES: ${JSON.stringify(activities, null, 2)} `)
+        logger.debug(`ACTIVITIES: ${discordToString(activities)} `);
         const latestActivity: Activity = activities
             .filter(activity => activity.type === ActivityType.Playing)
             .sort((a, b) => b.createdTimestamp - a.createdTimestamp)

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Client, Interaction } from "discord.js";
 
-import { Command, PingCommand, ReplyCommand } from "../command";
+import { Command, PingCommand } from "../command";
 import { BaseHandler } from "./baseHandler";
 import { getLogger } from "../util";
 
@@ -13,7 +13,6 @@ export class InteractionHandler extends BaseHandler {
         super(client)
         this.commands = [
             new PingCommand(),
-            new ReplyCommand(),
         ];
     }
 
@@ -24,9 +23,9 @@ export class InteractionHandler extends BaseHandler {
     }
 
     private logInteraction(interaction: Interaction) {
-        logger.info(JSON.stringify({
-            guild: { id: interaction.guildId, name: interaction.guild?.name },
+        logger.info("Interaction from " + JSON.stringify({
             user: { name: interaction.user.globalName },
+            guild: { id: interaction.guildId, name: interaction.guild?.name },
         }));
     }
 

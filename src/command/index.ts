@@ -1,5 +1,4 @@
-import { Command } from './command'
+import { Command } from '../model'
 import { PingCommand } from './ping'
-import { ReplyCommand } from './reply'
 
-export { Command, PingCommand, ReplyCommand }
+export { Command, PingCommand }

@@ -1,6 +1,6 @@
 import { CacheType, ChatInputCommandInteraction, SlashCommandBuilder, } from "discord.js";
 
-import { Command } from "./command";
+import { Command } from "../model/command";
 
 export class PingCommand implements Command {
     name = "ping";
