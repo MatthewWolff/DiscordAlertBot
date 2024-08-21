@@ -46,10 +46,10 @@ export class PresenceUpdateHandler extends BaseHandler {
     }
 
     private getLatestActivity(activities: ReadonlyArray<Activity>): string {
-        logger.trace(`ACTIVITIES: ${JSON.stringify(activities.length, null, 2)} `)
+        logger.trace(`ACTIVITIES: ${JSON.stringify(activities, null, 2)} `)
         const latestActivity: Activity = activities
             .filter(activity => activity.type === ActivityType.Playing)
-            .sort((a, b) => a.createdTimestamp - b.createdTimestamp)
+            .sort((a, b) => b.createdTimestamp - a.createdTimestamp)
             .find(a => a !== undefined);
 
         return latestActivity ? latestActivity.name : '';
