@@ -18,7 +18,7 @@ export class MessageHandler extends BaseHandler {
         }
     }
 
-    async handleMessage(message: Message) {
+    async handle(message: Message): Promise<void> {
         if (message.author.id == this.client.user.id) return; // don't self-reply
 
         const msg = extractMessage(message);

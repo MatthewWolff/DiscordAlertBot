@@ -9,7 +9,7 @@ import { discordToString, getLogger } from "../util";
 const logger = getLogger("handler.PresenceUpdateHandler")
 
 export class PresenceUpdateHandler extends BaseHandler {
-    async handlePresenceUpdate(presence: Presence) {
+    async handle(presence: Presence) {
         if (!presence || presence.status !== STATUS_ONLINE) {
             return;
         }

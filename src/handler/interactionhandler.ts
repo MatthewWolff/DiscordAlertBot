@@ -29,7 +29,7 @@ export class InteractionHandler extends BaseHandler {
         }));
     }
 
-    public async handleInteraction(interaction: ChatInputCommandInteraction): Promise<void> {
+    public async handle(interaction: ChatInputCommandInteraction): Promise<void> {
         const commandName = interaction.commandName;
         const matchedCommand = this.commands.find((command) => command.name === commandName);
 

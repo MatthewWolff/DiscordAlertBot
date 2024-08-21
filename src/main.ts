@@ -75,15 +75,15 @@ class DiscordAlertBot {
 
     addClientEventHandlers() {
         this.client.on(Events.InteractionCreate, (interaction) => {
-            this.interactionHandler.handleInteraction(interaction as ChatInputCommandInteraction);
+            this.interactionHandler.handle(interaction as ChatInputCommandInteraction);
         });
 
         this.client.on(Events.PresenceUpdate, (presenceUpdate: Presence) => {
-            this.presenceUpdateHandler.handlePresenceUpdate(presenceUpdate);
+            this.presenceUpdateHandler.handle(presenceUpdate);
         });
 
         this.client.on(Events.MessageCreate, (message: Message) => {
-            this.messageHandler.handleMessage(message);
+            this.messageHandler.handle(message);
         });
 
         this.client.on(Events.ClientReady, () => {

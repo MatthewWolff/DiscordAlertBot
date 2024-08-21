@@ -4,12 +4,14 @@ import { getLogger } from "../util";
 
 const logger = getLogger("handler.BaseHandler");
 
-export class BaseHandler {
+export abstract class BaseHandler {
     client: Client;
 
     constructor(client: Client) {
         this.client = client;
     }
+
+    abstract handle(field: any): Promise<void>;
 
     public getUser(id: string): Promise<User> {
         logger.trace(`fetching <@User> for id: ${id}`);
