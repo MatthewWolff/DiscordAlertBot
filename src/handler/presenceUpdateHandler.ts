@@ -1,10 +1,12 @@
 import { Activity, Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
-import { DESKTOP, STATUS_ONLINE } from "../constants";
 
-import userAlerts from '../userAlerts.json'
+import { DESKTOP, STATUS_ONLINE } from "../config/constants";
+import userAlerts from '../config/userAlerts.json'
 import { BaseHandler } from "./baseHandler";
+import { getLogger } from "../util";
 
+const logger = getLogger("handler.PresenceUpdateHandler")
 
 export class PresenceUpdateHandler extends BaseHandler {
     async handlePresenceUpdate(presence: Presence) {
@@ -15,11 +17,11 @@ export class PresenceUpdateHandler extends BaseHandler {
         const latestActivity: string = this.getLatestActivity(presence.activities)
 
         if (!latestActivity) {
+            logger.trace(`User ${user.username} has empty activity - ${JSON.stringify(presence)}`)
             return;
         }
 
-        console.log(`Username: "${user.globalName}" (${user.username})`);
-        console.log(`Activity: "${latestActivity}"`);
+        logger.debug(`Presence Updated:\nUsername - "${user.globalName}" (${user.username})\nActivity - "${latestActivity}"`);
         if (presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
             this.processAlerts(user, latestActivity);
         }
@@ -27,14 +29,15 @@ export class PresenceUpdateHandler extends BaseHandler {
 
     private processAlerts(user: User, latestActivity: string) {
         if (userAlerts[user.id]) {
+            logger.trace(JSON.stringify(userAlerts[user.id], null, 2));
             for (const userId in userAlerts[user.id]) {
                 const games: string[] = userAlerts[user.id][userId];
                 if (games.includes(latestActivity)) {
                     this.getUser(userId).then(usr => {
                         usr.send(`Hey, ${user.globalName} is playing ${latestActivity}!`)
-                            .then(() => console.log(`Messaged ${usr.username}`))
+                            .then(() => logger.info(`Messaged ${usr.username}`))
                             .catch(() => {
-                                console.error(`User ${user.username} has DMs closed or has no mutual servers with the bot :(`);
+                                logger.error(`User ${user.username} has DMs closed or has no mutual servers with the bot :(`);
                             });
                     })
                 }
@@ -43,6 +46,7 @@ export class PresenceUpdateHandler extends BaseHandler {
     }
 
     private getLatestActivity(activities: ReadonlyArray<Activity>): string {
+        logger.trace(`ACTIVITIES: ${JSON.stringify(activities.length, null, 2)} `)
         const latestActivity: Activity = activities
             .filter(activity => activity.type === ActivityType.Playing)
             .sort((a, b) => a.createdTimestamp - b.createdTimestamp)

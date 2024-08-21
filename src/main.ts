@@ -4,18 +4,22 @@ import {
     Events,
     GatewayIntentBits,
     Message,
+    Partials,
     Presence,
     REST as DiscordRestClient,
     Routes,
 } from "discord.js";
 import dotenv from "dotenv";
+
 import { InteractionHandler, MessageHandler, PresenceUpdateHandler } from "./handler";
-import { EVENT_MESSAGE } from "./constants";
+import { getLogger } from "./util";
 
 dotenv.config();
 
 const DISCORD_ACCESS_TOKEN = process.env.DISCORD_ACCESS_TOKEN || "";
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID || "";
+
+const logger = getLogger("service.bot");
 
 class DiscordAlertBot {
     private readonly client: Client;
@@ -28,12 +32,10 @@ class DiscordAlertBot {
         this.client = new Client({
             intents: [
                 GatewayIntentBits.Guilds,
-                GatewayIntentBits.GuildMessages,
                 GatewayIntentBits.GuildPresences,
                 GatewayIntentBits.DirectMessages,
-                GatewayIntentBits.DirectMessageTyping,
-
             ],
+            partials: [Partials.Channel], // for DMs
             shards: "auto",
             failIfNotExists: false,
         });
@@ -50,7 +52,7 @@ class DiscordAlertBot {
                 this.addClientEventHandlers();
                 this.registerSlashCommands();
             })
-            .catch((err) => console.error("Error starting bot", err));
+            .catch((err) => logger.error("Error starting bot", err));
     }
 
     registerSlashCommands() {
@@ -60,10 +62,10 @@ class DiscordAlertBot {
                 body: commands,
             })
             .then((data: any) => {
-                console.log(`Successfully registered ${data.length} global application (/) commands`);
+                logger.info(`Successfully registered ${data.length} global application (/) commands`);
             })
             .catch((err) => {
-                console.error("Error registering application (/) commands", err);
+                logger.error("Error registering application (/) commands", err);
             });
     }
 
@@ -76,17 +78,16 @@ class DiscordAlertBot {
             this.presenceUpdateHandler.handlePresenceUpdate(presenceUpdate);
         });
 
-        // note: does not work yet
-        this.client.on(EVENT_MESSAGE, (message: Message) => {
+        this.client.on(Events.MessageCreate, (message: Message) => {
             this.messageHandler.handleMessage(message);
         });
 
         this.client.on(Events.ClientReady, () => {
-            console.log("Wolffy alert bot client logged in");
+            logger.info("Wolffy alert bot client logged in");
         });
 
         this.client.on(Events.Error, (err: Error) => {
-            console.error("Client error", err);
+            logger.error("Client error", err);
         });
     }
 }

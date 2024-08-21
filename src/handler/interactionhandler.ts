@@ -1,6 +1,10 @@
 import { ChatInputCommandInteraction, Client, Interaction } from "discord.js";
+
 import { Command, PingCommand, ReplyCommand } from "../command";
 import { BaseHandler } from "./baseHandler";
+import { getLogger } from "../util";
+
+const logger = getLogger("handler.interactionHandler");
 
 export class InteractionHandler extends BaseHandler {
     private commands: Command[];
@@ -20,10 +24,10 @@ export class InteractionHandler extends BaseHandler {
     }
 
     private logInteraction(interaction: Interaction) {
-        console.log({
+        logger.info(JSON.stringify({
             guild: { id: interaction.guildId, name: interaction.guild?.name },
             user: { name: interaction.user.globalName },
-        })
+        }));
     }
 
     public async handleInteraction(interaction: ChatInputCommandInteraction): Promise<void> {
@@ -37,11 +41,11 @@ export class InteractionHandler extends BaseHandler {
         matchedCommand.execute(interaction)
             .then(() => {
                 this.logInteraction(interaction)
-                console.log(`Successfully executed command [/${interaction.commandName}]`);
+                logger.info(`Successfully executed command [/${interaction.commandName}]`);
             })
             .catch((err) => {
                     this.logInteraction(interaction);
-                    console.log(`Error executing command [/${interaction.commandName}]: ${err}`);
+                    logger.error(`Error executing command [/${interaction.commandName}]: ${err}`);
                 }
             );
     }

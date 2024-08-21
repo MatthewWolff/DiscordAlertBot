@@ -1,31 +1,40 @@
-import { BaseHandler } from "./baseHandler";
-import { Message, User } from "discord.js";
-import { BOT_OWNER, DIRECT_MESSAGE } from "../constants";
+import { Client, Message, User } from "discord.js";
 
+import { BaseHandler } from "./baseHandler";
+import { BOT_OWNER, DIRECT_MESSAGE } from "../config/constants";
+import { discordToString, getLogger } from "../util";
+
+const logger = getLogger("handler.MessageHandler");
 
 export class MessageHandler extends BaseHandler {
 
     DM_AUTHOR_ID_TEXT_SEPARATOR = " || ";
 
-    private async forwardMessage(message: Message, to: User, from: User) {
+    constructor(client: Client) {
+        super(client);
+        if (BOT_OWNER === '') {
+            logger.error("BOT_OWNER not set in environment file, cannot use messageHandler");
+        }
+    }
 
+    private async forwardMessage(message: Message, to: User, from: User) {
         const ownerMessageSuffix = from.id !== BOT_OWNER ? `- ${from.username} ${this.DM_AUTHOR_ID_TEXT_SEPARATOR} ${from.id}` : '';
         this.client.user.send(message.content + ownerMessageSuffix)
-            .then(() => console.log(`Forwarded message to ${to.username} from ${from.username} - """${message}"""`));
+            .then(() => logger.info(`Forwarded message to ${to.username} from ${from.username} - """${message}"""`));
     }
 
     async handleMessage(message: Message) {
-        console.log(`Handling message: ${JSON.stringify(message, null, 2)}`);
+        logger.debug(`Handling message:\n${discordToString(message)}`);
         const owner = await this.getUser(BOT_OWNER);
 
         // @ts-ignore
         if (message.channel.type === DIRECT_MESSAGE) {
             if (message.author.id === BOT_OWNER) {
-                console.log("Message sender is owner");
+                logger.debug("Message sender is owner");
                 // check if the message is a reply
                 if (message.reference?.messageId) {
                     const repliedMessage: Message = await message.author.dmChannel.messages.fetch(message.reference.messageId);
-                    console.log(`Replied message: ${JSON.stringify(repliedMessage, null, 2)}`);
+                    logger.info(`Replied message: ${JSON.stringify(repliedMessage, null, 2)}`);
                     // if replying to a user's message, locate that message and determine the user
                     if (repliedMessage.content.includes(this.DM_AUTHOR_ID_TEXT_SEPARATOR)) {
                         // extract all text after the DM_AUTHOR_ID_TEXT_SEPARATOR and retrieve that as a user

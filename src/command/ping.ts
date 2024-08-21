@@ -1,4 +1,5 @@
 import { CacheType, ChatInputCommandInteraction, SlashCommandBuilder, } from "discord.js";
+
 import { Command } from "./command";
 
 export class PingCommand implements Command {
