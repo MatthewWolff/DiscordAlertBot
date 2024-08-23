@@ -9,8 +9,6 @@ const logger = getLogger("handler.MessageHandler");
 
 export class MessageHandler extends BaseHandler {
 
-    DM_AUTHOR_ID_TEXT_SEPARATOR = " || ";
-
     constructor(client: Client) {
         super(client);
         if (BOT_OWNER === '') {
@@ -42,13 +40,6 @@ export class MessageHandler extends BaseHandler {
                 }
             }
         }
-    }
-
-    private async sendMessage(message: Message, from: User, to: User) {
-        logger.info(`[MSG] FROM: "${from.username}", TO "${to.username}" || \`${message}\``)
-        const nonOwnerIdentifier = ` - ${from.username} ${this.DM_AUTHOR_ID_TEXT_SEPARATOR} ${from.id}`;
-        to.send(message.content + (from.id !== BOT_OWNER ? nonOwnerIdentifier : ''))
-            .catch(e => logger.error(`Error forwarding message: ${e}`));
     }
 
     /**

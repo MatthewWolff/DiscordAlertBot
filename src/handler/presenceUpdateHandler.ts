@@ -35,7 +35,10 @@ export class PresenceUpdateHandler extends BaseHandler {
                 if (games.includes(latestActivity)) {
                     this.getUser(userId).then(usr => {
                         usr.send(`Hey, ${user.globalName} is playing ${latestActivity}!`)
-                            .then(() => logger.info(`Alerted ${usr.username}`))
+                            .then(() => {
+                                logger.info(`Alerted ${usr.username}`);
+                                this.sendSelfMessage(`Alerted ${usr.username} about ${latestActivity}`)
+                            })
                             .catch(() => {
                                 logger.error(`User ${user.username} has DMs closed or has no mutual servers with the bot :(`);
                             });
