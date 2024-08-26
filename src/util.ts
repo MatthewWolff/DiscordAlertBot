@@ -25,3 +25,22 @@ export function extractMessage(message: Message): MessageCore {
         inReplyTo: message.reference?.messageId ?? undefined,
     });
 }
+
+export function getIntersection(arr1: string[], arr2: string[]): string[] {
+    const set1 = new Set(arr1);
+    const set2 = new Set(arr2);
+    const intersection = new Set<string>();
+
+    for (const item of set1) {
+        if (set2.has(item)) {
+            intersection.add(item);
+        }
+    }
+
+    return Array.from(intersection);
+}
+
+export function formatDate(timestamp: number): string {
+    const date = new Date(timestamp);
+    return date.toISOString();
+}

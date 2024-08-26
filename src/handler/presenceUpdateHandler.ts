@@ -1,12 +1,16 @@
-import { Activity, Presence, User } from "discord.js";
+import { Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
 import { DESKTOP, STATUS_ONLINE } from "../config/constants";
-import userAlerts from '../config/userAlerts.json'
+import userAlerts from '../config/gameMap.json'
 import { BaseHandler } from "./baseHandler";
-import { discordToString, getLogger } from "../util";
+import { formatDate, getIntersection, getLogger } from "../util";
+import { MessageCore } from "../model";
 
 const logger = getLogger("handler.PresenceUpdateHandler")
+
+
+const GAME_ALERT_TIME_THRESHOLD_MILLISECONDS = 2 * 60 * 60 * 1000;
 
 export class PresenceUpdateHandler extends BaseHandler {
     async handle(presence: Presence) {
@@ -14,47 +18,51 @@ export class PresenceUpdateHandler extends BaseHandler {
             return;
         }
         const user: User = await this.getUser(presence.userId);
-        const latestActivity: string = this.getLatestActivity(presence.activities)
+        console.log(presence.activities.filter(activity => activity.type === ActivityType.Playing));
+        const activities = presence.activities
+            .filter(activity => activity.type === ActivityType.Playing)
+            .map(activity => activity.name);
 
-        if (!latestActivity) {
-            logger.debug(`User ${user.username} has empty activity - ${JSON.stringify(presence, null, 2)}`)
-            return;
-        }
-
-        logger.debug(`Presence Updated:\nUsername - "${user.globalName}" (${user.username})\nActivity - "${latestActivity}"`);
-        if (presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
-            this.processAlerts(user, latestActivity);
+        if (activities && presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
+            logger.info(`Found activities for ${user.username}: ${activities.join(', ')}`);
+            await this.processAlerts(user, activities);
         }
     }
 
-    private processAlerts(user: User, latestActivity: string) {
+    private async processAlerts(user: User, currentActivities: string[]) {
         if (userAlerts[user.id]) {
-            logger.trace(JSON.stringify(userAlerts[user.id], null, 2));
-            for (const userId in userAlerts[user.id]) {
-                const games: string[] = userAlerts[user.id][userId];
-                if (games.includes(latestActivity)) {
-                    this.getUser(userId).then(usr => {
-                        usr.send(`Hey, ${user.globalName} is playing ${latestActivity}!`)
-                            .then(() => {
-                                logger.info(`Alerted ${usr.username}`);
-                                this.sendSelfMessage(`Alerted ${usr.username} about ${latestActivity}`)
-                            })
-                            .catch(() => {
-                                logger.error(`User ${user.username} has DMs closed or has no mutual servers with the bot :(`);
-                            });
-                    })
-                }
+            for (const friendId in userAlerts[user.id]) {
+                const friend: User = await this.getUser(friendId);
+                const subscribedGames: string[] = userAlerts[user.id][friendId];
+                getIntersection(subscribedGames, currentActivities)
+                    .filter(game => this.canMessageUserAboutGame(friend, game))
+                    .map(game => {
+                        logger.info(`User ${user.username} is playing ${game}`);
+                        this.sendMessage(MessageCore.from(`Hey, ${user.globalName} is playing ${game}!`), user, friend)
+                            .then(() => this.sendSelfMessage(`Alerted ${friend.username} about ${currentActivities}`))
+                            .catch(e => logger.error(`User ${friend.username} has DMs closed or has no mutual servers with the bot :(`, e));
+                    });
             }
         }
     }
 
-    private getLatestActivity(activities: ReadonlyArray<Activity>): string {
-        logger.debug(`ACTIVITIES: ${discordToString(activities)} `);
-        const latestActivity: Activity = activities
-            .filter(activity => activity.type === ActivityType.Playing)
-            .sort((a, b) => b.createdTimestamp - a.createdTimestamp)
-            .find(a => a !== undefined);
+    private canMessageUserAboutGame(user: User, game: string) {
+        // iterate through the user's dmChannel to see if we've already messaged them in the past 2 hours
+        user.dmChannel.messages.fetch({ limit: 100 }).then(messages => {
+            const recentAlertAboutGame = messages
+                .filter(message => message.author.id === this.client.user.id)
+                .filter(message => message.content.includes(game))
+                .filter(message => message.createdTimestamp > Date.now() - GAME_ALERT_TIME_THRESHOLD_MILLISECONDS)
+                .sort((m1, m2) => m2.createdTimestamp - m1.createdTimestamp)
+                .first();
+            if (recentAlertAboutGame) {
+                logger.info(`Already messaged user ${user.username} about ${game} at ${formatDate(recentAlertAboutGame.createdTimestamp)}`)
+                return false;
+            } else {
+                return true;
+            }
 
-        return latestActivity ? latestActivity.name : '';
+        });
+        return false;
     }
 }
