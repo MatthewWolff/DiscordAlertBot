@@ -48,24 +48,32 @@ export class PresenceUpdateHandler extends BaseHandler {
     }
 
     private canMessageUserAboutGame(user: User, game: string) {
-        // iterate through the user's dmChannel to see if we've already messaged them in the past 2 hours
-        user.dmChannel.messages.fetch({ limit: 100 }).then(messages => {
-            const recentAlertAboutGame = messages
-                .filter(message => message.author.id === this.client.user.id)
-                .filter(message => message.content.includes(game))
-                .filter(message => message.createdTimestamp > Date.now() - GAME_ALERT_TIME_THRESHOLD_MILLISECONDS)
-                .sort((m1, m2) => m2.createdTimestamp - m1.createdTimestamp)
-                .first();
-            if (recentAlertAboutGame) {
-                logger.info(`Already messaged user ${user.username} about ${game} at ${formatDate(recentAlertAboutGame.createdTimestamp)}`)
-                return false;
-            } else {
-                return true;
-            }
-
-        }).catch(e => {
-            logger.error(`Error fetching messages for user ${user.username}`, e);
+        const lastMessageMentionsGame = user.createDM().then(dmChannel => {
+            return dmChannel.lastMessage ? dmChannel.lastMessage.content.includes(game) : false;
         });
-        return false;
+        if (lastMessageMentionsGame) {
+            logger.info(`Already messaged user ${user.username} about ${game} at ${formatDate(user.dmChannel.lastMessage.createdTimestamp)}`);
+            return false;
+        }
+        return true;
+
+        // maybe make this work eventually?
+        // user.dmChannel.messages.fetch({ limit: 100 }).then(messages => {
+        //     const recentAlertAboutGame = messages
+        //         .filter(message => message.author.id === this.client.user.id)
+        //         .filter(message => message.content.includes(game))
+        //         .filter(message => message.createdTimestamp > Date.now() - GAME_ALERT_TIME_THRESHOLD_MILLISECONDS)
+        //         .sort((m1, m2) => m2.createdTimestamp - m1.createdTimestamp)
+        //         .first();
+        //     if (recentAlertAboutGame) {
+        //         logger.info(`Already messaged user ${user.username} about ${game} at ${formatDate(recentAlertAboutGame.createdTimestamp)}`)
+        //         return false;
+        //     } else {
+        //         return true;
+        //     }
+        //
+        // }).catch(e => {
+        //     logger.error(`Error fetching messages for user ${user.username}`, e);
+        // });
     }
 }
