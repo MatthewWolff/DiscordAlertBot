@@ -18,11 +18,11 @@ export class PresenceUpdateHandler extends BaseHandler {
         }
         const user: User = await this.getUser(presence.userId);
         const activities = presence.activities
-            .filter(activity => activity.type === ActivityType.Playing)
+            .filter(activity => activity.type === ActivityType.Playing && activity.name)
             .map(activity => activity.name);
 
         if (activities && presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
-            logger.info(`Found activities for ${user.username}: ${activities.join(', ')}`);
+            logger.debug(`Found activities for ${user.username}: ${activities.join(', ')}`);
             await this.processAlerts(user, activities);
         }
     }
