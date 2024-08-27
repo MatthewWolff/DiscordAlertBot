@@ -18,7 +18,8 @@ export class PresenceUpdateHandler extends BaseHandler {
             return;
         }
         const user: User = await this.getUser(presence.userId);
-        console.log(presence.activities.filter(activity => activity.type === ActivityType.Playing));
+        console.log(user)
+        console.log(presence.activities);
         const activities = presence.activities
             .filter(activity => activity.type === ActivityType.Playing)
             .map(activity => activity.name);
@@ -62,6 +63,8 @@ export class PresenceUpdateHandler extends BaseHandler {
                 return true;
             }
 
+        }).catch(e => {
+            logger.error(`Error fetching messages for user ${user.username}`, e);
         });
         return false;
     }
