@@ -29,11 +29,6 @@ export class MessageCore {
         this.inReplyTo = inReplyTo
     }
 
-    public static from(content: string): MessageCore {
-        return new MessageCore({ content } as MessageCoreParams
-        );
-    }
-
     public getReplyMessage(): Promise<Message> {
         if (!this.inReplyTo) return undefined;
         return this.author.dmChannel.messages.fetch(this.inReplyTo);

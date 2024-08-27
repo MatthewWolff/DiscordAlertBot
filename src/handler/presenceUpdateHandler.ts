@@ -39,7 +39,7 @@ export class PresenceUpdateHandler extends BaseHandler {
                     .filter(game => this.canMessageUserAboutGame(friend, game))
                     .map(game => {
                         logger.info(`User ${user.username} is playing ${game}`);
-                        this.sendMessage(MessageCore.from(`Hey, ${user.globalName} is playing ${game}!`), user, friend)
+                        friend.send(`Hey, ${user.globalName} is playing ${game}!`)
                             .then(() => this.sendSelfMessage(`Alerted ${friend.username} about ${currentActivities}`))
                             .catch(e => logger.error(`User ${friend.username} has DMs closed or has no mutual servers with the bot :(`, e));
                     });
