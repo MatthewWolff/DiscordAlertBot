@@ -1,4 +1,4 @@
-import { Presence, User } from "discord.js";
+import { Presence, time, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
 import { DESKTOP, STATUS_ONLINE } from "../config/constants";
@@ -47,12 +47,24 @@ export class PresenceUpdateHandler extends BaseHandler {
         }
     }
 
-    private canMessageUserAboutGame(user: User, game: string) {
-        const lastMessageMentionsGame = user.createDM().then(dmChannel => {
-            return dmChannel.lastMessage ? dmChannel.lastMessage.content.includes(game) : false;
-        });
-        if (lastMessageMentionsGame) {
-            logger.info(`Already messaged user ${user.username} about ${game} at ${formatDate(user.dmChannel.lastMessage.createdTimestamp)}`);
+    private async canMessageUserAboutGame(user: User, game: string) {
+        const recentlyMessageUser = await user.createDM()
+            .then(dmChannel => {
+                if (dmChannel.lastMessage){
+                    const timestamp = dmChannel.lastMessage.createdTimestamp
+                    const recent = dmChannel.lastMessage.createdTimestamp > Date.now() - GAME_ALERT_TIME_THRESHOLD_MILLISECONDS;
+                    logger.info(`Last message to ${user.username}: ${dmChannel.lastMessage.content} [${formatDate(timestamp)}]`);
+                    logger.info(`Message is recent: ${recent}`);
+                    return dmChannel.lastMessage.content.includes(game) && recent;
+                }
+                return false;
+            })
+            .catch(e => {
+                logger.error(`Error fetching last message for user ${user.username}`, e);
+                return false;
+            });
+        if (recentlyMessageUser) {
+            logger.info(`Already messaged user ${user.username} about ${game}`);
             return false;
         }
         return true;
