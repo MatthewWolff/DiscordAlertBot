@@ -1,0 +1,11 @@
+#!/usr/bin/env zsh
+. /home/matthew/.oh-my-zsh/lib/git.zsh # access git shortcuts
+
+echo '>> fetching changes'
+git fetch --all && git rebase origin/main --autostash && git push -u -f origin $(git_current_branch)
+
+pkill node
+echo '>> killing node'
+nohup /home/matthew/DiscordAlertBot/runner >> ~/discord_bot.error.log 2>&1 &
+disown
+echo '>> started bot!'
