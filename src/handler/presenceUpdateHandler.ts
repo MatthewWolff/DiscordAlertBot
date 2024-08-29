@@ -22,7 +22,7 @@ export class PresenceUpdateHandler extends BaseHandler {
             .map(activity => activity.name);
 
         if (activities && presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
-            logger.debug(`Found activities for ${user.username}: ${activities.join(', ')}`);
+            logger.debug(`Found games for ${user.username}: ${activities.join(', ')}`);
             await this.processAlerts(user, activities);
         }
     }

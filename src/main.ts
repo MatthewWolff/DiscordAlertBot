@@ -78,8 +78,8 @@ class DiscordAlertBot {
             this.interactionHandler.handle(interaction as ChatInputCommandInteraction);
         });
 
-        this.client.on(Events.PresenceUpdate, (presenceUpdate: Presence) => {
-            this.presenceUpdateHandler.handle(presenceUpdate);
+        this.client.on(Events.PresenceUpdate, (_: Presence, newPresence: Presence) => {
+            this.presenceUpdateHandler.handle(newPresence);
         });
 
         this.client.on(Events.MessageCreate, (message: Message) => {
