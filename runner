@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -x
+builtin cd "$(dirname "$0")"
+
+export PATH=/home/matthew/.nvm/versions/node/v22.6.0/bin:/home/matthew/.local/bin:/home/matthew/scripts:/usr/local/bin:/usr/bin:/bin
+
+pkill node # stop running instance, if applicable
+yarn start
