@@ -17,11 +17,6 @@ export class PresenceUpdateHandler extends BaseHandler {
             return;
         }
 
-        if (await this.isBotSleeping()) {
-            logger.warn(`Bot is sleeping, ignoring presence update`);
-            return;
-        }
-
         const user: User = await this.getUser(presence.userId);
         const activities = presence.activities
             .filter(activity => activity.type === ActivityType.Playing && activity.name)
@@ -29,6 +24,12 @@ export class PresenceUpdateHandler extends BaseHandler {
 
         if (activities && presence.clientStatus[DESKTOP] === STATUS_ONLINE) {
             logger.debug(`Found games for ${user.username}: ${activities.join(', ')}`);
+
+            if (await this.isBotSleeping()) {
+                logger.warn(`Bot is sleeping, ignoring presence update`);
+                return;
+            }
+
             await this.processAlerts(user, activities);
         }
     }
