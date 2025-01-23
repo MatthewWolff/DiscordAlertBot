@@ -1,7 +1,7 @@
 import { Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
-import { DESKTOP, STATUS_ONLINE } from "../config/constants";
+import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_ONLINE } from "../config/constants";
 import userAlerts from '../config/gameMap.json'
 import { BaseHandler } from "./baseHandler";
 import { filter, formatDate, getIntersection, getLogger } from "../util";
@@ -16,6 +16,12 @@ export class PresenceUpdateHandler extends BaseHandler {
         if (!presence || presence.status !== STATUS_ONLINE) {
             return;
         }
+
+        if (await this.isBotSleeping()) {
+            logger.warn(`Bot is sleeping, ignoring presence update`);
+            return;
+        }
+
         const user: User = await this.getUser(presence.userId);
         const activities = presence.activities
             .filter(activity => activity.type === ActivityType.Playing && activity.name)
@@ -40,6 +46,41 @@ export class PresenceUpdateHandler extends BaseHandler {
                             .catch(e => logger.error(`User ${friend.username} has DMs closed or has no mutual servers with the bot :(`, e));
                     });
             }
+        }
+    }
+
+    // check if the bot has been slept recently
+    async isBotSleeping(): Promise<boolean> {
+        return this.getUser(BOT_OWNER).then(user =>
+            user.createDM().then(dmChannel => dmChannel.messages.fetch({ limit: 100 })
+                .then(messages => {
+                    const recentSleep = messages
+                        .filter(message => message.author.id === this.client.user.id)
+                        .filter(message => message.content.startsWith(SLEEPING_PREFIX))
+                        .sort((m1, m2) => m2.createdTimestamp - m1.createdTimestamp)
+                        .first();
+                    if (recentSleep) {
+                        return this.isDoneSleeping(recentSleep.content);
+                    } else {
+                        return false;
+                    }
+                }).catch(e => {
+                    logger.error(`Error fetching messages for user ${user.username}`, e);
+                    return false;
+                })
+            )).catch(e => {
+            logger.error(`Error fetching DM channel for owner`, e);
+            return false;
+        })
+    }
+
+    private isDoneSleeping(recentSleep: string): boolean {
+        const date = new Date(recentSleep.replace(SLEEPING_PREFIX, "").trim());
+        if (date.getTime() > Date.now()) {
+            logger.warn(`Bot is sleeping until ${date}`);
+            return true;
+        } else {
+            return false;
         }
     }
 
