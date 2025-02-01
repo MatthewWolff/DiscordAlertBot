@@ -44,8 +44,6 @@ export class InteractionHandler extends BaseHandler {
                 const newTime = new Date();
                 newTime.setHours(newTime.getHours() + SLEEP_DURATION_HOURS);
                 await this.sendSelfMessage(`${SLEEPING_PREFIX} ${newTime}`)
-            } else {
-                await interaction.reply({ content: "Hush kitten, you are not the bot owner", ephemeral: true });
             }
         }
 
