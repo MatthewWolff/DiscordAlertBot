@@ -7,3 +7,4 @@ export const STATUS_ONLINE: string = 'online'
 export const DESKTOP: string = 'desktop'
 export const DIRECT_MESSAGE_CHANNEL_TYPE = 1
 export const SLEEPING_PREFIX = 'Sleeping until'
+export const SLEEP_DURATION_HOURS = 2

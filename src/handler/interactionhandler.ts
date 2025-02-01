@@ -3,7 +3,7 @@ import { ChatInputCommandInteraction, Client, Interaction } from "discord.js";
 import { Command, PingCommand, SleepCommand } from "../command";
 import { BaseHandler } from "./baseHandler";
 import { getLogger } from "../util";
-import { BOT_OWNER, SLEEPING_PREFIX } from "../config/constants";
+import { BOT_OWNER, SLEEP_DURATION_HOURS, SLEEPING_PREFIX } from "../config/constants";
 
 const logger = getLogger("handler.interactionHandler");
 
@@ -42,7 +42,7 @@ export class InteractionHandler extends BaseHandler {
         if (matchedCommand.name == "sleep") {
             if (interaction.user.id == BOT_OWNER) {
                 const newTime = new Date();
-                newTime.setHours(newTime.getHours() + 1);
+                newTime.setHours(newTime.getHours() + SLEEP_DURATION_HOURS);
                 await this.sendSelfMessage(`${SLEEPING_PREFIX} ${newTime}`)
             } else {
                 await interaction.reply({ content: "Hush kitten, you are not the bot owner", ephemeral: true });
