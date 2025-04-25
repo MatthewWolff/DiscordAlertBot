@@ -35,10 +35,12 @@ export class PresenceUpdateHandler extends BaseHandler {
     }
 
     private async processAlerts(user: User, currentActivities: string[]) {
-        if (userAlerts[user.id]) {
-            for (const friendId in userAlerts[user.id]) {
-                const friend: User = await this.getUser(friendId);
-                const subscribedGames: string[] = userAlerts[user.id][friendId];
+        for (const watcherId in userAlerts) {
+            const watchedMap = userAlerts[watcherId];
+            if (watchedMap[user.id]) {
+                const friend: User = await this.getUser(watcherId);
+                const subscribedGames: string[] = watchedMap[user.id];
+
                 (await filter(getIntersection(subscribedGames, currentActivities), (game: string) => this.canMessageUserAboutGame(friend, game)))
                     .map(game => {
                         logger.info(`User ${user.username} is playing ${game}`);
