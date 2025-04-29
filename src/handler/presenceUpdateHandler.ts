@@ -22,7 +22,7 @@ export class PresenceUpdateHandler extends BaseHandler {
         if (presence.activities.some(activity => activity.type === ActivityType.Listening && activity.name === 'Spotify')) {
             logger.debug(`[handle] Presence: ${discordToString(presence)}`);
         }
-        
+
         const user: User = await this.getUser(presence.userId);
         logger.debug(`[handle] Fetched user: ${user.username} (${user.id})`);
 
@@ -36,7 +36,7 @@ export class PresenceUpdateHandler extends BaseHandler {
             logger.debug(`[handle] Found games for ${user.username}: ${activities.join(', ')}`);
         }
 
-        if (activities.length && presence.clientStatus?.[DESKTOP] === STATUS_ONLINE) {
+        if (activities.length && presence.clientStatus?.[DESKTOP] !== STATUS_OFFLINE) {
             if (await this.isBotSleeping()) {
                 logger.warn(`[handle] Bot is sleeping, ignoring presence update`);
                 return;
