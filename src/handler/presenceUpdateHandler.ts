@@ -19,8 +19,10 @@ export class PresenceUpdateHandler extends BaseHandler {
             return;
         }
 
-        logger.debug(`[handle] Presence: ${discordToString(presence)}`);
-
+        if (presence.activities.some(activity => activity.type === ActivityType.Listening && activity.name === 'Spotify')) {
+            logger.debug(`[handle] Presence: ${discordToString(presence)}`);
+        }
+        
         const user: User = await this.getUser(presence.userId);
         logger.debug(`[handle] Fetched user: ${user.username} (${user.id})`);
 
