@@ -19,7 +19,7 @@ export class PresenceUpdateHandler extends BaseHandler {
             return;
         }
 
-        if (presence.activities.some(activity => activity.type === ActivityType.Listening && activity.name === 'Spotify')) {
+        if (!presence.activities.some(activity => activity.type === ActivityType.Listening && activity.name === 'Spotify')) {
             logger.debug(`[handle] Presence: ${discordToString(presence)}`);
         }
 
