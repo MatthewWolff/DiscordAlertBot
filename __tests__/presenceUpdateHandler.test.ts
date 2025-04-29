@@ -5,16 +5,12 @@ import { ActivityType } from 'discord-api-types/v10';
 
 jest.mock('discord.js');
 
-
 const mockMessage = { content: 'Test message' } as Message;
-const mockSend = jest.fn().mockResolvedValue(mockMessage);  // Return mock message in promise
-const mockDMSend = jest.fn().mockResolvedValue(mockMessage);  // Return mock message in promise
+const mockSend = jest.fn().mockResolvedValue(mockMessage);
+const mockDMSend = jest.fn().mockResolvedValue(mockMessage);
 const mockFetchMessages = jest.fn();
 
 const createMockUser = (id: string, username: string): User => {
-    // Create a mock message that `send()` will resolve to
-
-
     return {
         id,
         username,
@@ -51,6 +47,7 @@ describe('PresenceUpdateHandler', () => {
                 '164537364092289024': createMockUser('164537364092289024', 'Matthew'),
                 '265610485812953088': createMockUser('265610485812953088', 'Tyler'),
                 '225142521024610304': createMockUser('225142521024610304', 'Bryan'),
+                '226129559303487488': createMockUser('226129559303487488', 'MJ'),
             };
             return Promise.resolve(users[id]);
         });
@@ -59,18 +56,18 @@ describe('PresenceUpdateHandler', () => {
             users: {
                 fetch: mockUsersFetch,
             },
+            user: { id: 'botId' }
         } as unknown as Client;
 
         handler = new PresenceUpdateHandler(mockClient);
 
-        // Mock sleep check and recent alert logic
         handler.isBotSleeping = jest.fn().mockResolvedValue(false);
         mockFetchMessages.mockResolvedValue({
             filter: () => ({
                 filter: () => ({
                     filter: () => ({
                         sort: () => ({
-                            first: () => null, // no recent alert
+                            first: () => null,
                         }),
                     }),
                 }),
@@ -82,7 +79,7 @@ describe('PresenceUpdateHandler', () => {
         const presence = createMockPresence('164537364092289024', ['Marvel Rivals']);
         await handler.handle(presence);
 
-        expect(mockSend).toHaveBeenCalledWith(expect.stringContaining('Marvel Rivals'));
+        expect(mockSend).toHaveBeenCalledWith(expect.stringContaining('MATTHEW is playing Marvel Rivals'));
     });
 
     test('should not alert if bot is sleeping', async () => {
@@ -98,7 +95,10 @@ describe('PresenceUpdateHandler', () => {
             userId: '164537364092289024',
             status: 'online',
             clientStatus: { desktop: 'online' },
-            activities: [{ type: ActivityType.Watching, name: 'Netflix' }],
+            activities: [
+                { type: ActivityType.Watching, name: 'Netflix' },
+                { type: ActivityType.Listening, name: 'Spotify' }
+            ],
         } as unknown as Presence;
 
         await handler.handle(presence);
@@ -113,7 +113,7 @@ describe('PresenceUpdateHandler', () => {
                     filter: () => ({
                         sort: () => ({
                             first: () => ({
-                                createdTimestamp: Date.now() - 60 * 60 * 1000, // 1 hour ago
+                                createdTimestamp: Date.now() - 60 * 60 * 1000,
                             }),
                         }),
                     }),
@@ -127,10 +127,25 @@ describe('PresenceUpdateHandler', () => {
         expect(mockSend).not.toHaveBeenCalled();
     });
 
-    test('should alert self if a friend is playing a watched game', async () => {
+    test('should not alert if user is offline on desktop', async () => {
+        const presence = {
+            ...createMockPresence('164537364092289024', ['Marvel Rivals']),
+            clientStatus: { desktop: 'offline' }
+        } as unknown as Presence;
+
+        await handler.handle(presence);
+
+        expect(mockSend).not.toHaveBeenCalled();
+    });
+
+    test('should not alert self', async () => {
         const presence = createMockPresence('265610485812953088', ['Risk of Rain 2']);
         await handler.handle(presence);
 
-        expect(mockSend).toHaveBeenCalledWith(expect.stringContaining('Risk of Rain 2'));
+        // Check that the self-alert is not among the calls
+        const selfAlertCall = mockSend.mock.calls.find(call =>
+            call[0].includes('TYLER is playing Risk of Rain 2')
+        );
+        expect(selfAlertCall).toBeUndefined();
     });
 });

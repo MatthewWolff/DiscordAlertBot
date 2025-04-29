@@ -1,7 +1,7 @@
 import { Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
-import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE, STATUS_ONLINE } from "../config/constants";
+import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE } from "../config/constants";
 import userAlerts from '../config/gameMap.json'
 import { BaseHandler } from "./baseHandler";
 import { discordToString, filter, formatDate, getIntersection, getLogger } from "../util";
@@ -51,30 +51,41 @@ export class PresenceUpdateHandler extends BaseHandler {
     private async processAlerts(user: User, currentActivities: string[]) {
         logger.debug(`[processAlerts] Processing alerts for ${user.username} (${user.id})`);
 
-        for (const watcherId in userAlerts) {
-            logger.debug(`[processAlerts] Checking watcherId: ${watcherId}`);
-            const watchedMap = userAlerts[watcherId];
+        const watchers = userAlerts[user.id];
+        if (!watchers) {
+            logger.debug(`[processAlerts] No watchers found for ${user.username}`);
+            return;
+        }
 
-            if (watchedMap[user.id]) {
-                logger.debug(`[processAlerts] Watcher ${watcherId} is subscribed to ${user.username}`);
-
-                const friend: User = await this.getUser(watcherId);
-                const subscribedGames: string[] = watchedMap[user.id];
-
-                logger.debug(`[processAlerts] Subscribed games for ${friend.username}: ${subscribedGames.join(', ')}`);
-                const matchedGames = getIntersection(subscribedGames, currentActivities);
-                logger.debug(`[processAlerts] Matched games between ${friend.username} and ${user.username}: ${matchedGames.join(', ')}`);
-
-                (await filter(matchedGames, (game: string) => this.canMessageUserAboutGame(friend, game)))
-                    .map(game => {
-                        logger.info(`[processAlerts] User ${user.username} is playing a watched game: ${game}`);
-                        friend.send(`Hey, ${user.globalName} is playing ${game}!`)
-                            .then(() => this.sendSelfMessage(`Alerted ${friend.username} about ${currentActivities}`))
-                            .catch(e => logger.error(`[processAlerts] Failed to send DM to ${friend.username}`, e));
-                    });
-            } else {
-                logger.debug(`[processAlerts] No subscription found for ${watcherId} watching ${user.id}`);
+        for (const watcherId in watchers) {
+            if (user.id == watcherId) {
+                continue;
             }
+
+            logger.debug(`[processAlerts] Notifying watcherId: ${watcherId}`);
+
+            const watcherNickname = watchers[watcherId][0];
+            const subscribedGames = watchers[watcherId].slice(1);
+
+            logger.debug(`[processAlerts] Subscribed games for watcher ${watcherId} (${watcherNickname}): ${subscribedGames.join(', ')}`);
+
+            const matchedGames = getIntersection(subscribedGames, currentActivities);
+            logger.debug(`[processAlerts] Matched games: ${matchedGames.join(', ')}`);
+
+            if (matchedGames.length === 0) {
+                logger.debug(`[processAlerts] No matching games for watcher ${watcherId} (${watcherNickname})`);
+                continue;
+            }
+
+            const watcher: User = await this.getUser(watcherId);
+
+            (await filter(matchedGames, (game: string) => this.canMessageUserAboutGame(watcher, game)))
+                .map(game => {
+                    logger.info(`[processAlerts] Alerting ${watcher.username} that ${user.username} is playing ${game}`);
+                    watcher.send(`Hey, ${user.globalName} is playing ${game}!`)
+                        .then(() => this.sendSelfMessage(`Alerted ${watcher.username} about ${user.username} playing ${game}`))
+                        .catch(e => logger.error(`[processAlerts] Failed to send DM to ${watcher.username}`, e));
+                });
         }
     }
 
