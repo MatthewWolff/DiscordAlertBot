@@ -1,7 +1,7 @@
 import { Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
-import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_ONLINE } from "../config/constants";
+import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE, STATUS_ONLINE } from "../config/constants";
 import userAlerts from '../config/gameMap.json'
 import { BaseHandler } from "./baseHandler";
 import { discordToString, filter, formatDate, getIntersection, getLogger } from "../util";
@@ -14,7 +14,7 @@ export class PresenceUpdateHandler extends BaseHandler {
     async handle(presence: Presence) {
         logger.debug(`[handle] Received presence update for userId: ${presence?.userId}`);
 
-        if (!presence || presence.status !== STATUS_ONLINE) {
+        if (!presence || presence.status == STATUS_OFFLINE) {
             logger.debug(`[handle] Presence invalid or user is not online. Status: ${presence?.status}`);
             return;
         }
