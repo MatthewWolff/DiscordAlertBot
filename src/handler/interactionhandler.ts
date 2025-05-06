@@ -15,7 +15,7 @@ export class InteractionHandler extends BaseHandler {
         this.commands = [
             new PingCommand(),
             new SleepCommand(),
-            new NotifierCommand(),
+            new NotifierCommand(client),
         ];
     }
 

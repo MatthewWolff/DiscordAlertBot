@@ -1,17 +1,17 @@
-import {
-    CacheType,
-    ChatInputCommandInteraction,
-    CommandInteraction,
-    EmbedBuilder,
-    SlashCommandBuilder
-} from 'discord.js';
+import { ChatInputCommandInteraction, Client, CommandInteraction, EmbedBuilder, SlashCommandBuilder } from 'discord.js';
 
 import { Command, GameDatabase } from "../model";
-import { getLogger } from "../util";
+import { getLogger, mapKeysAsync } from "../util";
 
 const logger = getLogger("command.notifier");
 
 export class NotifierCommand implements Command {
+    private client: Client;
+
+    constructor(client: Client) {
+        this.client = client;
+    }
+
     name = "notifier";
     description = "Manage game subscriptions";
     slashCommandConfig = new SlashCommandBuilder()
@@ -80,121 +80,144 @@ export class NotifierCommand implements Command {
                 )
         );
 
-    async execute(interaction: ChatInputCommandInteraction<CacheType>): Promise<any> {
+    async execute(interaction: ChatInputCommandInteraction) {
         logger.debug(`Received notifier command: ${interaction.options.getSubcommand()}`);
-        return handleNotifierCommand(interaction);
-    }
-}
-
-// Command handler
-export async function handleNotifierCommand(interaction: CommandInteraction) {
-    if (!interaction.isChatInputCommand()) return;
-
-    const subcommand = interaction.options.getSubcommand();
-    const target = interaction.options.getUser('target');
-    const destination = interaction.options.getUser('destination');
-    const game = interaction.options.getString('game');
-
-    logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`);
-
-    const database = await GameDatabase.load();
-
-    switch (subcommand) {
-        case 'add':
-            if (!target || !destination || !game) {
-                await interaction.reply('Missing required arguments!');
-                return;
-            }
-
-            try {
-                database.initializeUser(target.username, target.id);
-                database.initializeUser(destination.username, destination.id);
-                database.addSubscription(target, destination, game);
-                await database.save();
-                await interaction.reply(`Added ${game} to ${target.username}'s list for ${destination.username}!`);
-            } catch (error) {
-                logger.error('Error adding subscription:', error);
-                await interaction.reply(`Failed to add game: ${error.message}`);
-            }
-            break;
-
-        case 'remove':
-            if (!target || !destination || !game) {
-                await interaction.reply('Missing required arguments!');
-                return;
-            }
-
-            try {
-                database.removeSubscription(target, destination, game);
-                await database.save();
-                await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
-            } catch (error) {
-                logger.error('Error removing subscription:', error);
-                await interaction.reply(`Failed to remove game: ${error.message}`);
-            }
-            break;
-
-        case 'get-subscriptions':
-            await handleGetSubscriptions(interaction, database);
-            break;
-
-        case 'get-subscribers':
-            await handleGetSubscribers(interaction, database);
-            break;
-    }
-}
-
-async function handleGetSubscriptions(interaction: CommandInteraction, database: GameDatabase) {
-    if (!interaction.isChatInputCommand()) return;
-
-    const targetUser = interaction.options.getUser('user') || interaction.user;
-
-    const subscribedGames = database.getSubscribedGames(targetUser);
-
-    if (subscribedGames.size === 0) {
-        await interaction.reply(`${targetUser.username} has no subscriptions`);
-        return;
+        return this.handleNotifierCommand(interaction);
     }
 
-    const embed = new EmbedBuilder()
-        .setTitle(`${targetUser.username}'s Subscriptions`)
-        .setColor('#0099ff')
-        .setTimestamp();
+    async handleNotifierCommand(interaction: CommandInteraction) {
+        if (!interaction.isChatInputCommand()) return;
 
-    for (const [targetUsername, games] of subscribedGames) {
-        embed.addFields({
-            name: `Notified when ${targetUsername} plays:`,
-            value: games.join('\n'),
-            inline: false
+        const subcommand = interaction.options.getSubcommand();
+        const target = interaction.options.getUser('target');
+        const destination = interaction.options.getUser('destination');
+        const game = interaction.options.getString('game');
+
+        logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`);
+
+        const database = await GameDatabase.load();
+
+        switch (subcommand) {
+            case 'add':
+                if (!target || !destination || !game) {
+                    await interaction.reply('Missing required arguments!');
+                    return;
+                }
+
+                try {
+                    database.initializeUser(target.username, target.id);
+                    database.initializeUser(destination.username, destination.id);
+                    database.addSubscription(target, destination, game);
+                    await database.save();
+                    await interaction.reply(`Added ${game} to ${target.username}'s list for ${destination.username}!`);
+                } catch (error) {
+                    logger.error('Error adding subscription:', error);
+                    await interaction.reply(`Failed to add game: ${error.message}`);
+                }
+                break;
+
+            case 'remove':
+                if (!target || !destination || !game) {
+                    await interaction.reply('Missing required arguments!');
+                    return;
+                }
+
+                try {
+                    database.removeSubscription(target, destination, game);
+                    await database.save();
+                    await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
+                } catch (error) {
+                    logger.error('Error removing subscription:', error);
+                    await interaction.reply(`Failed to remove game: ${error.message}`);
+                }
+                break;
+
+            case 'get-subscriptions':
+                await this.handleGetSubscriptions(interaction, database);
+                break;
+
+            case 'get-subscribers':
+                await this.handleGetSubscribers(interaction, database);
+                break;
+        }
+    }
+
+    async handleGetSubscriptions(interaction: CommandInteraction, database: GameDatabase) {
+        if (!interaction.isChatInputCommand()) {
+            logger.warn('[handleGetSubscriptions] Interaction is not a chat input command');
+            return;
+        }
+
+        const targetUser = interaction.options.getUser('user') || interaction.user;
+        logger.debug(`[handleGetSubscriptions] Getting subscriptions for ${targetUser.username} (${targetUser.id})`);
+
+        const subscribedGamesRaw = database.getSubscribedGames(targetUser);
+        const subscribedGames = await mapKeysAsync(subscribedGamesRaw, async (id) => {
+            return (await this.client.users.fetch(id)).username;
         });
+        logger.debug(`[handleGetSubscriptions] Found ${subscribedGames.size} subscriptions`);
+
+        if (subscribedGames.size === 0) {
+            logger.debug(`[handleGetSubscriptions] No subscriptions found for ${targetUser.username}`);
+            await interaction.reply(`${targetUser.username} has no subscriptions`);
+            return;
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`${targetUser.username}'s Subscriptions`)
+            .setColor('#0099ff')
+            .setTimestamp();
+
+        for (const [targetUsername, games] of subscribedGames) {
+            logger.debug(`[handleGetSubscriptions] Adding games for ${targetUsername}: ${games.join(', ')}`);
+            embed.addFields({
+                name: `Notified when ${targetUsername} plays:`,
+                value: games.join('\n'),
+                inline: false
+            });
+        }
+
+        logger.debug('[handleGetSubscriptions] Sending response with subscriptions embed');
+        await interaction.reply({ embeds: [embed] });
     }
 
-    await interaction.reply({ embeds: [embed] });
-}
+    async handleGetSubscribers(interaction: CommandInteraction, database: GameDatabase) {
+        if (!interaction.isChatInputCommand()) {
+            logger.warn('[handleGetSubscribers] Interaction is not a chat input command');
+            return;
+        }
 
-async function handleGetSubscribers(interaction: CommandInteraction, database: GameDatabase) {
-    if (!interaction.isChatInputCommand()) return;
+        const targetUser = interaction.options.getUser('user') || interaction.user;
+        logger.debug(`[handleGetSubscribers] Getting subscribers for ${targetUser.username} (${targetUser.id})`);
 
-    const targetUser = interaction.options.getUser('user') || interaction.user;
-    const subscribers = database.getSubscribers(targetUser);
-
-    if (subscribers.size === 0) {
-        await interaction.reply(`${targetUser.username} has no subscribers`);
-        return;
-    }
-
-    const embed = new EmbedBuilder()
-        .setTitle(`Users tracking ${targetUser.username}'s games`)
-        .setColor('#00ff99')
-        .setTimestamp();
-
-    for (const [subscriberUsername, games] of subscribers) {
-        embed.addFields({
-            name: `${subscriberUsername} will be notified about:`,
-            value: games.join('\n'),
-            inline: false
+        const subscribersRaw = database.getSubscribers(targetUser);
+        const subscribers = await mapKeysAsync(subscribersRaw, async (id) => {
+            return (await this.client.users.fetch(id)).username;
         });
-    }
 
-    await interaction.reply({ embeds: [embed] });
+        logger.debug(`[handleGetSubscribers] Found ${subscribers.size} subscribers`);
+
+        if (subscribers.size === 0) {
+            logger.debug(`[handleGetSubscribers] No subscribers found for ${targetUser.username}`);
+            await interaction.reply(`${targetUser.username} has no subscribers`);
+            return;
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle(`Users tracking ${targetUser.username}'s games`)
+            .setColor('#00ff99')
+            .setTimestamp();
+
+        for (const [subscriberUsername, games] of subscribers) {
+            logger.debug(`[handleGetSubscribers] Adding subscriber ${subscriberUsername} with games: ${games.join(', ')}`);
+            embed.addFields({
+                name: `${subscriberUsername} will be notified about:`,
+                value: games.join('\n'),
+                inline: false
+            });
+        }
+
+        logger.debug('[handleGetSubscribers] Sending response with subscribers embed');
+        await interaction.reply({ embeds: [embed] });
+    }
 }

@@ -1,27 +1,27 @@
 {
   "users": {
-    "MATTHEW": {
+    "Matthew": {
       "userId": "164537364092289024",
       "subscribers": {
-        "TYLER": ["Overwatch 2", "Risk of Rain 2", "Marvel Rivals", "Deadlock"],
-        "BRYAN": ["Risk of Rain 2", "Don't Starve Together", "Marvel Rivals", "Deadlock"],
-        "JOSHY": ["HITMAN World of Assassination", "HITMAN 3"],
+        "Tyler": ["Overwatch 2", "Risk of Rain 2", "Marvel Rivals", "Deadlock"],
+        "Bryan": ["Risk of Rain 2", "Don't Starve Together", "Marvel Rivals", "Deadlock"],
+        "Joshy": ["HITMAN World of Assassination", "HITMAN 3"],
         "MJ": ["League of Legends", "Marvel Rivals"]
       }
     },
-    "BRYAN": {
+    "Bryan": {
       "userId": "225142521024610304",
       "subscribers": {
-        "MATTHEW": ["Marvel Rivals"]
+        "Matthew": ["Marvel Rivals"]
       }
     },
-    "TYLER": {
+    "Tyler": {
       "userId": "265610485812953088",
       "subscribers": {
-        "MATTHEW": ["Marvel Rivals", "Overwatch 2"]
+        "Matthew": ["Marvel Rivals", "Overwatch 2"]
       }
     },
-    "JOSHY": {
+    "Joshy": {
       "userId": "664189792489046017",
       "subscribers": {}
     },

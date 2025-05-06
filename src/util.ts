@@ -49,3 +49,26 @@ export async function filter(arr, callback) {
     const fail = Symbol()
     return (await Promise.all(arr.map(async item => (await callback(item)) ? item : fail))).filter(i => i !== fail)
 }
+
+/**
+ * Creates a new Map with transformed keys while preserving the original values
+ * Supports async key transformations
+ * @param originalMap The source map
+ * @param transformKey Async function to transform each key
+ * @param filterNullKeys Whether to filter out null/undefined keys (default: true)
+ * @returns A Promise of a new Map with transformed keys
+ */
+export async function mapKeysAsync<K, V, NK>(
+    originalMap: Map<K, V>,
+    transformKey: (key: K) => Promise<NK | null | undefined>,
+    filterNullKeys: boolean = true
+): Promise<Map<NK, V>> {
+    const transformedEntries = await Promise.all(
+        Array.from(originalMap.entries())
+            .map(async ([key, value]) => [await transformKey(key), value])
+    );
+
+    return new Map(
+        transformedEntries.filter(([key, _]) => !filterNullKeys || key != null) as [NK, V][]
+    );
+}

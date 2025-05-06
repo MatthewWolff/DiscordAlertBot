@@ -70,7 +70,7 @@ export class GameDatabase {
      * Finds a user by either their User object
      */
     findUser(user: User): UserData | undefined {
-        return this.findUserByDatabaseName(user.username) || this.findUserByID(user.id)[1];
+        return this.findUserByID(user.id)[1];
     }
 
     /**
@@ -133,15 +133,23 @@ export class GameDatabase {
         }
     }
 
+    lookupUserIdByDatabaseName(databaseName: string): string | undefined {
+        const userEntry = Object.entries(this.data.users).find(([name, _]) => name === databaseName);
+        return userEntry ? userEntry[1].userId : undefined;
+    }
+
     /**
      * Gets all games a user is subscribed to
      */
     getSubscribedGames(user: User): Map<string, string[]> {
-        const subscribed = new Map<string, string[]>();
+        const userEntry = Object.entries(this.data.users).find(([_, userData]) => userData.userId === user.id);
+        const databaseName = userEntry[0];
 
-        for (const [targetUsername, userData] of Object.entries(this.data.users)) {
-            if (user.username in userData.subscribers) {
-                subscribed.set(targetUsername, userData.subscribers[user.username]);
+        const subscribed = new Map<string, string[]>();
+        for (const [_, targetUserData] of Object.entries(this.data.users)) {
+            if (databaseName in targetUserData.subscribers) {
+                logger.debug(`Found subscription for ${databaseName} in ${targetUserData.userId}`);
+                subscribed.set(targetUserData.userId, targetUserData.subscribers[databaseName]);
             }
         }
 
@@ -153,14 +161,19 @@ export class GameDatabase {
      * Gets all subscribers for a user
      */
     getSubscribers(user: User): Map<string, string[]> {
-        const userData = this.data.users[user.username];
+        const userData = this.findUserByID(user.id);
         if (!userData) {
-            logger.debug(`No subscribers found for ${user.username}`);
+            logger.debug(`No subscribers found for ${user.username} (${user.id})`);
             return new Map();
         }
 
-        logger.debug(`Found ${Object.keys(userData.subscribers).length} subscribers for ${user.username}`);
-        return new Map(Object.entries(userData.subscribers));
+        const subscribersWithIds = new Map<string, string[]>();
+        for (const [subscriberDatabaseName, games] of Object.entries(userData.subscribers)) {
+            subscribersWithIds.set(this.lookupUserIdByDatabaseName(subscriberDatabaseName), games);
+        }
+
+        logger.debug(`Found ${subscribersWithIds.size} subscribers for ${user.username} (${user.id})`);
+        return subscribersWithIds;
     }
 
     /**
