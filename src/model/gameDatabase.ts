@@ -157,6 +157,11 @@ export class GameDatabase {
      */
     getSubscribedGames(user: User): Map<string, string[]> {
         const userEntry = Object.entries(this.data.users).find(([_, userData]) => userData.userId === user.id);
+        if (!userEntry) {
+            logger.error(`No subscriptions found for ${user.username}`);
+            return new Map();
+        }
+
         const databaseName = userEntry[0];
 
         const subscribed = new Map<string, string[]>();
