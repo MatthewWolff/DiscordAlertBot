@@ -1,71 +1,117 @@
-# Discord Bot for Alerting based on Games
-Have you ever wanted your friends to get notified when you start up a game? 
-Have you only wanted certain friends to get notified about certain games?
+# Discord Bot for Game Alerts
+
+Have you ever wanted your friends to get notified when you start up a game?  
+Have you only wanted certain friends to get notified about certain games?  
 This is the bot for you!
 
-This repo will create a bot that waits in your server and monitors the presences of its users,
-alerting certain users when a target user has started to play a game.
+This bot monitors the gaming activity of users in your Discord server and sends alerts to specified users when their friends start playing certain games.
 
-### how do I set it up?
-You'll need to add the bot to your server. You'll follow [general instructions for setting up a discord bot](https://www.ionos.com/digitalguide/server/know-how/creating-discord-bot/?srsltid=AfmBOoogK0zH0ddtPJA6NFx8_I_iSkgc2i-fAlQV0r1qed6mc6AQlRrn).
+## Features
 
-You can provide a mapping of target to subscriber along with which games the subscriber should be informed about:
+- Monitors user presence for game activity
+- Allows users to subscribe to game alerts for specific friends
+- Supports adding and removing game subscriptions via commands
+- Provides commands to view current subscriptions and subscribers
+- Implements a cooldown system to prevent spam
+- Forwards messages from subscribers to the target user
 
-#### gameMap.json
+## Setup
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) (I used v22)
+- [Yarn](https://yarnpkg.com/)
+
+### Discord Bot Setup
+
+1. Create a new Discord application in the [Discord Developer Portal](https://discord.com/developers/applications).
+2. Add a bot to your application and copy the bot token.
+3. Invite the bot to your server with necessary permissions. You'll follow [general instructions for setting up a discord bot](https://www.ionos.com/digitalguide/server/know-how/creating-discord-bot/).
+
+
+### Installation
+
+1. Clone this repository:
+   ```bash
+   git clone https://github.com/yourusername/discord-game-alert-bot.git
+   cd discord-game-alert-bot
+   ```
+
+2. Install dependencies:
+   ```bash
+   yarn install
+   ```
+
+3. Copy the `.env.example` file to `.env` and update it with your bot token and other necessary values:
+   ```bash
+   cp .env.example .env
+   ```
+
+4. Start the bot:
+   ```bash
+   yarn start
+   ```
+
+## Usage
+
+### Commands
+
+- `/notifier add <watcher> <notifier> <game>`: Add a game subscription
+- `/notifier remove <watcher> <notifier> <game>`: Remove a game subscription
+- `/notifier get-subscriptions [user]`: View games you're subscribed to (or another user's, if specified)
+- `/notifier get-subscribers [user]`: View who is subscribed to your games (or another user's, if specified)
+
+### Database Structure
+
+The bot uses a JSON file (`gameMap.json`) to store subscription data. Here's an example structure:
+
 ```json
 {
-  "164537364092289024": {
-    "MATTHEW": [],
-    "265210485812923088": [
-      "TYLER",
-      "Overwatch 2",
-      "Risk of Rain 2",
-      "Deadlock"
-    ],
-    "225142521024610302": [
-      "BRYAN",
-      "Risk of Rain 2",
-      "Don't Starve Together"
-    ]
+  "users": {
+    "Matthew": {
+      "userId": "222537364092289024",
+      "subscribers": {
+        "Joshy": ["HITMAN World of Assassination", "HITMAN 3"],
+        "MJ": ["League of Legends", "Marvel Rivals"]
+      }
+    },
+    "Joshy": {
+      "userId": "222189792489046017",
+      "subscribers": {}
+    },
+    "MJ": {
+      "userId": "222129559303487488",
+      "subscribers": {}
+    }
   }
 }
 ```
 
 In the example above (user IDs have been changed), we can provide a human-readable name among the list of games.
 
-When MATTHEW has a change in gaming presence, the bot will check if the game name has a hit for any of the subscribers,
-at which point the bot will message them. If he plays Overwatch 2, then TYLER will receive a message about that.
+When `Matthew` has a change in gaming presence, the bot will check if the game name has a hit for any of the subscribers,
+at which point the bot will message them. If he plays Marvel Rivals, then `MJ` will receive a message about that.
 
-### Can the bot message anyone?
-No, all user IDs above will need to:
-1. share a server with the bot
-2. allow messages from server members (at least for the shared server)
-3. have their privacy setting configured so that non-friends can message them
 
-### How to avoid spam?
-The bot has a built-in 2 hour cool-off after messaging a user about a particular game. This cool-off is *per game*.
+### Privacy and Permissions
 
-### What if my friends reply to the bot?
-The bot will forward their message to you
+For the bot to function correctly:
+1. Users must share a server with the bot
+2. Allow messages from server members (at least for the shared server)
+3. Have their privacy settings configured to allow non-friends to message them
 
-### Can I reply back?
-Yes, you'll need to use the `reply` function directly on the message that the bot forwards you
+### Anti-Spam Measures
 
----
+The bot implements a 2-hour cooldown per game to prevent excessive notifications.
 
-## Prerequisites
+### Message Forwarding
 
-Before you start, make sure you have the following installed:
+When subscribers reply to the bot's alerts, their messages are forwarded to the notifying user. The user can reply using the `reply` function on the forwarded message.
 
-- [Node.js](https://nodejs.org/)
-- [Yarn](https://yarnpkg.com/)
+## Contributing
 
-## Running
-1. Create a new Discord bot and obtain the token. You can do this by creating a new application on the [Discord Developer Portal](https://discord.com/developers/applications).
-2. Rename the `.env.example` file to `.env` and update the fields with the neccesarry values
-3. Install dependencies using Yarn and start the bot
+Contributions are welcome! Please feel free to submit a Pull Request.
 
-```bash
-yarn # installs dependencies
-yarn start
-```
+## License
+
+This project is licensed under the GNU General License - see the [LICENSE](LICENSE) file for details.
