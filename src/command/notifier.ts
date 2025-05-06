@@ -6,11 +6,10 @@ import {
     SlashCommandBuilder
 } from 'discord.js';
 
-import { Command } from "../model";
-import { getLogger, loadDatabase, saveDatabase } from "../util";
+import { Command, GameDatabase } from "../model";
+import { getLogger } from "../util";
 
 const logger = getLogger("command.notifier");
-
 
 export class NotifierCommand implements Command {
     name = "notifier";
@@ -96,111 +95,91 @@ export async function handleNotifierCommand(interaction: CommandInteraction) {
     const destination = interaction.options.getUser('destination');
     const game = interaction.options.getString('game');
 
-    logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`)
+    logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`);
 
-    const database = await loadDatabase();
+    const database = await GameDatabase.load();
 
     switch (subcommand) {
         case 'add':
-            // Initialize the database structure if it doesn't exist
-            if (!database[destination.id]) {
-                database[destination.id] = {};
-            }
-            if (!database[destination.id][target.id]) {
-                database[destination.id][target.id] = [target.username.toUpperCase()];
-            }
-
-            // Check if the game already exists
-            if (database[destination.id][target.id].includes(game)) {
-                await interaction.reply(`${game} is already in ${target.username}'s list for ${destination.username}!`);
+            if (!target || !destination || !game) {
+                await interaction.reply('Missing required arguments!');
                 return;
             }
 
-            // Add the game
-            database[destination.id][target.id].push(game);
-            await saveDatabase(database);
-            await interaction.reply(`Added ${game} to ${target.username}'s list for ${destination.username}!`);
+            try {
+                database.initializeUser(target.username, target.id);
+                database.initializeUser(destination.username, destination.id);
+                database.addSubscription(target, destination, game);
+                await database.save();
+                await interaction.reply(`Added ${game} to ${target.username}'s list for ${destination.username}!`);
+            } catch (error) {
+                logger.error('Error adding subscription:', error);
+                await interaction.reply(`Failed to add game: ${error.message}`);
+            }
             break;
 
         case 'remove':
-            // Check if the entries exist
-            if (!database[destination.id] || !database[destination.id][target.id]) {
-                await interaction.reply(`No games found for ${target.username} in ${destination.username}'s list!`);
+            if (!target || !destination || !game) {
+                await interaction.reply('Missing required arguments!');
                 return;
             }
 
-            // Find and remove the game
-            const gameIndex = database[destination.id][target.id].indexOf(game);
-            if (gameIndex === -1) {
-                await interaction.reply(`${game} not found in ${target.username}'s list for ${destination.username}!`);
-                return;
+            try {
+                database.removeSubscription(target, destination, game);
+                await database.save();
+                await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
+            } catch (error) {
+                logger.error('Error removing subscription:', error);
+                await interaction.reply(`Failed to remove game: ${error.message}`);
             }
-
-            database[destination.id][target.id].splice(gameIndex, 1);
-            await saveDatabase(database);
-            await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
             break;
+
         case 'get-subscriptions':
-            await handleGetSubscriptions(interaction);
+            await handleGetSubscriptions(interaction, database);
             break;
+
         case 'get-subscribers':
-            await handleGetSubscribers(interaction);
+            await handleGetSubscribers(interaction, database);
             break;
     }
 }
 
-async function handleGetSubscriptions(interaction: CommandInteraction) {
+async function handleGetSubscriptions(interaction: CommandInteraction, database: GameDatabase) {
     if (!interaction.isChatInputCommand()) return;
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
-    const database = await loadDatabase();
+
+    const subscribedGames = database.getSubscribedGames(targetUser);
+
+    if (subscribedGames.size === 0) {
+        await interaction.reply(`${targetUser.username} has no subscriptions`);
+        return;
+    }
 
     const embed = new EmbedBuilder()
         .setTitle(`${targetUser.username}'s Subscriptions`)
         .setColor('#0099ff')
         .setTimestamp();
 
-    let foundAny = false;
-
-    // Look through all destination users
-    for (const [destinationId, users] of Object.entries(database)) {
-        if (users[targetUser.id]) {
-            foundAny = true;
-            const games = users[targetUser.id].slice(1); // Remove the username entry
-            if (games.length > 0) {
-                try {
-                    const destinationUser = await interaction.client.users.fetch(destinationId);
-                    embed.addFields({
-                        name: `Notified when ${destinationUser.username} plays:`,
-                        value: games.join('\n'),
-                        inline: false
-                    });
-                } catch (error) {
-                    console.error(`Error fetching user ${destinationId}:`, error);
-                }
-            }
-        }
-    }
-
-    if (!foundAny) {
-        await interaction.reply(`${targetUser.username}'s has no subscriptions`);
-        return;
+    for (const [targetUsername, games] of subscribedGames) {
+        embed.addFields({
+            name: `Notified when ${targetUsername} plays:`,
+            value: games.join('\n'),
+            inline: false
+        });
     }
 
     await interaction.reply({ embeds: [embed] });
 }
 
-async function handleGetSubscribers(interaction: CommandInteraction) {
+async function handleGetSubscribers(interaction: CommandInteraction, database: GameDatabase) {
     if (!interaction.isChatInputCommand()) return;
 
     const targetUser = interaction.options.getUser('user') || interaction.user;
-    const database = await loadDatabase();
+    const subscribers = database.getSubscribers(targetUser);
 
-    // Check if the user has any subscriptions
-    const userNotifications = database[targetUser.id];
-
-    if (!userNotifications) {
-        await interaction.reply(`${targetUser.username} has no notifications set!`);
+    if (subscribers.size === 0) {
+        await interaction.reply(`${targetUser.username} has no subscribers`);
         return;
     }
 
@@ -209,33 +188,13 @@ async function handleGetSubscribers(interaction: CommandInteraction) {
         .setColor('#00ff99')
         .setTimestamp();
 
-    let hasEntries = false;
-
-    // Iterate through all users in the subscription list
-    for (const [userId, games] of Object.entries(userNotifications)) {
-        if (userId === targetUser.id) continue; // Skip config entry
-
-        const gamesList = games.slice(1); // Remove the username entry
-        if (gamesList.length > 0) {
-            hasEntries = true;
-            try {
-                const subscribedUser = await interaction.client.users.fetch(userId);
-                embed.addFields({
-                    name: `${subscribedUser.username} will be notified about:`,
-                    value: gamesList.join('\n'),
-                    inline: false
-                });
-            } catch (error) {
-                console.error(`Error fetching user ${userId}:`, error);
-            }
-        }
-    }
-
-    if (!hasEntries) {
-        await interaction.reply(`${targetUser.username} has no notifications set`);
-        return;
+    for (const [subscriberUsername, games] of subscribers) {
+        embed.addFields({
+            name: `${subscriberUsername} will be notified about:`,
+            value: games.join('\n'),
+            inline: false
+        });
     }
 
     await interaction.reply({ embeds: [embed] });
 }
-

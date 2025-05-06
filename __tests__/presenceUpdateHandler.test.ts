@@ -1,9 +1,10 @@
-// __tests__/presenceUpdateHandler.test.ts
 import { PresenceUpdateHandler } from '../src/handler';
 import { Client, Message, Presence, User } from 'discord.js';
 import { ActivityType } from 'discord-api-types/v10';
+import { GameDatabase } from '../src/model';
 
 jest.mock('discord.js');
+jest.mock('../src/model/GameDatabase');
 
 const mockMessage = { content: 'Test message' } as Message;
 const mockSend = jest.fn().mockResolvedValue(mockMessage);
@@ -38,19 +39,21 @@ const createMockPresence = (userId: string, games: string[]): Presence => ({
 describe('PresenceUpdateHandler', () => {
     let handler: PresenceUpdateHandler;
     let mockClient: Client;
+    let mockDatabase: jest.Mocked<GameDatabase>;
 
     beforeEach(() => {
         jest.clearAllMocks();
 
-        const mockUsersFetch = jest.fn((id: string) => {
-            const users: { [key: string]: User } = {
-                '164537364092289024': createMockUser('164537364092289024', 'Matthew'),
-                '265610485812953088': createMockUser('265610485812953088', 'Tyler'),
-                '225142521024610304': createMockUser('225142521024610304', 'Bryan'),
-                '226129559303487488': createMockUser('226129559303487488', 'MJ'),
-            };
-            return Promise.resolve(users[id]);
-        });
+        // Create mock users
+        const mockUsers = {
+            '164537364092289024': createMockUser('164537364092289024', 'Matthew'),
+            '265610485812953088': createMockUser('265610485812953088', 'Tyler'),
+            '225142521024610304': createMockUser('225142521024610304', 'Bryan'),
+            '226129559303487488': createMockUser('226129559303487488', 'MJ'),
+            '999999999999999999': createMockUser('999999999999999999', 'Unknown'),
+        };
+
+        const mockUsersFetch = jest.fn((id: string) => Promise.resolve(mockUsers[id]));
 
         mockClient = {
             users: {
@@ -58,6 +61,47 @@ describe('PresenceUpdateHandler', () => {
             },
             user: { id: 'botId' }
         } as unknown as Client;
+
+        // Mock GameDatabase
+        mockDatabase = {
+            load: jest.fn(),
+            findUserByID: jest.fn(),
+            getSubscribers: jest.fn(),
+            findUserByDatabaseName: jest.fn(),
+        } as unknown as jest.Mocked<GameDatabase>;
+
+        // Setup default database responses
+        (GameDatabase.load as jest.Mock).mockResolvedValue(mockDatabase);
+
+        mockDatabase.findUserByID.mockImplementation((userId) => ({
+            userId: userId,
+            subscribers: userId === '164537364092289024' ? {
+                'Tyler': ['Marvel Rivals'],
+                'Bryan': ['Marvel Rivals'],
+                'MJ': ['Marvel Rivals']
+            } : {}
+        }));
+
+        mockDatabase.findUserByDatabaseName.mockImplementation((username) => {
+            const matchingId = Object.keys(mockUsers).find(id =>
+                mockUsers[id].username === username
+            );
+
+            if (!matchingId) return undefined;
+
+            return {
+                userId: matchingId,  // Changed from user_id
+                subscribers: {}
+            };
+        });
+
+        mockDatabase.getSubscribers.mockImplementation((user) =>
+            new Map(Object.entries({
+                'Tyler': ['Marvel Rivals'],
+                'Bryan': ['Marvel Rivals'],
+                'MJ': ['Marvel Rivals']
+            }))
+        );
 
         handler = new PresenceUpdateHandler(mockClient);
 
@@ -139,6 +183,13 @@ describe('PresenceUpdateHandler', () => {
     });
 
     test('should not alert self', async () => {
+        mockDatabase.findUserByID.mockReturnValue({
+            userId: '265610485812953088',
+            subscribers: {
+                'Tyler': ['Risk of Rain 2']
+            }
+        });
+
         const presence = createMockPresence('265610485812953088', ['Risk of Rain 2']);
         await handler.handle(presence);
 
@@ -147,5 +198,14 @@ describe('PresenceUpdateHandler', () => {
             call[0].includes('TYLER is playing Risk of Rain 2')
         );
         expect(selfAlertCall).toBeUndefined();
+    });
+
+    test('should handle user not in database', async () => {
+        mockDatabase.findUserByID.mockReturnValue(undefined);
+
+        const presence = createMockPresence('999999999999999999', ['Marvel Rivals']);
+        await handler.handle(presence);
+
+        expect(mockSend).not.toHaveBeenCalled();
     });
 });

@@ -3,9 +3,10 @@ import { ActivityType } from 'discord-api-types/v10';
 
 import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE } from "../config/constants";
 import { BaseHandler } from "./baseHandler";
-import { discordToString, filter, formatDate, getIntersection, getLogger, loadDatabase } from "../util";
+import { discordToString, filter, formatDate, getIntersection, getLogger } from "../util";
+import { GameDatabase, UserData } from "../model";
 
-const logger = getLogger("handler.PresenceUpdateHandler")
+const logger = getLogger("handler.PresenceUpdateHandler");
 
 const GAME_ALERT_TIME_THRESHOLD_MILLISECONDS = 2 * 60 * 60 * 1000;
 
@@ -50,40 +51,42 @@ export class PresenceUpdateHandler extends BaseHandler {
     private async processAlerts(user: User, currentActivities: string[]) {
         logger.debug(`[processAlerts] Processing alerts for ${user.username} (${user.id})`);
 
-        const watchers = (await loadDatabase())[user.id];
-        if (!watchers) {
-            logger.debug(`[processAlerts] No watchers found for ${user.username}`);
+        const database = await GameDatabase.load();
+
+        const userData = database.findUserByID(user.id);
+        if (!userData) {
+            logger.debug(`[processAlerts] No database entry found for ${user.username}. Ignoring.`);
             return;
         }
 
-        for (const watcherId in watchers) {
-            if (user.id == watcherId) {
-                continue;
-            }
+        // Get all subscribers for this user
+        const subscribers = database.getSubscribers(user);
 
-            logger.debug(`[processAlerts] Notifying watcherId: ${watcherId}`);
-
-            const watcherNickname = watchers[watcherId][0];
-            const subscribedGames = watchers[watcherId].slice(1);
-
-            logger.debug(`[processAlerts] Subscribed games for watcher ${watcherId} (${watcherNickname}): ${subscribedGames.join(', ')}`);
+        // Process each subscriber
+        for (const [subscriberName, subscribedGames] of subscribers) {
+            logger.debug(`[processAlerts] Processing subscriber: ${subscriberName}`);
 
             const matchedGames = getIntersection(subscribedGames, currentActivities);
             logger.debug(`[processAlerts] Matched games: ${matchedGames.join(', ')}`);
 
             if (matchedGames.length === 0) {
-                logger.debug(`[processAlerts] No matching games for watcher ${watcherId} (${watcherNickname})`);
+                logger.debug(`[processAlerts] No matching games for subscriber ${subscriberName}`);
                 continue;
             }
 
-            const watcher: User = await this.getUser(watcherId);
+            const subscriberData: UserData = database.findUserByDatabaseName(subscriberName);
+            if (!subscriberData) {
+                logger.warn(`[processAlerts] Subscriber ${subscriberName} not found in database`);
+                continue;
+            }
 
-            (await filter(matchedGames, (game: string) => this.canMessageUserAboutGame(watcher, game)))
+            const subscriber: User = await this.getUser(subscriberData.userId);
+            (await filter(matchedGames, (game: string) => this.canMessageUserAboutGame(subscriber, game)))
                 .map(game => {
-                    logger.info(`[processAlerts] Alerting ${watcher.username} that ${user.username} is playing ${game}`);
-                    watcher.send(`Hey, ${user.globalName} is playing ${game}!`)
-                        .then(() => this.sendSelfMessage(`Alerted ${watcher.username} about ${user.username} playing ${game}`))
-                        .catch(e => logger.error(`[processAlerts] Failed to send DM to ${watcher.username}`, e));
+                    logger.info(`[processAlerts] Alerting ${subscriber.username} that ${user.username} is playing ${game}`);
+                    subscriber.send(`Hey, ${user.globalName} is playing ${game}!`)
+                        .then(() => this.sendSelfMessage(`Alerted ${subscriber.username} about ${user.username} playing ${game}`))
+                        .catch(e => logger.error(`[processAlerts] Failed to send DM to ${subscriber.username}`, e));
                 });
         }
     }

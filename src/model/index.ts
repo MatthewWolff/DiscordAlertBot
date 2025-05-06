@@ -1,5 +1,5 @@
 import { Command } from './command'
 import { MessageCore } from './messageCore'
-import { GameDatabase } from "./gameDatabase";
+import { DatabaseStructure, GameDatabase, UserData } from "./gameDatabase";
 
-export { Command, MessageCore, GameDatabase }
+export { Command, MessageCore, GameDatabase, UserData, DatabaseStructure }

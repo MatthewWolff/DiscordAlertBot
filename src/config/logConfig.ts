@@ -8,5 +8,7 @@ export const provider = Log4TSProvider.createProvider("DiscordAlertBotProvider",
         { expression: new RegExp("command.+"), level: LogLevel.Debug },
         { expression: new RegExp("handler.+"), level: LogLevel.Info },
         { expression: new RegExp("service.+"), level: LogLevel.Info },
+        { expression: new RegExp("utils.+"), level: LogLevel.Info },
+        { expression: new RegExp("model.gameDatabase"), level: LogLevel.Debug },
     ],
 });

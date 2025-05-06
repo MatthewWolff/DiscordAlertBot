@@ -38,6 +38,11 @@ describe('InteractionHandler', () => {
                 execute: mockExecute,
                 slashCommandConfig: { toJSON: () => ({ name: 'sleep' }) }
             })),
+            NotifierCommand: jest.fn(() => ({
+                name: 'notifier',
+                execute: mockExecute,
+                slashCommandConfig: { toJSON: () => ({ name: 'notifier' }) }
+            })),
         }));
 
         mockClient = {
