@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, Client, Interaction } from "discord.js";
 
-import { Command, PingCommand, SleepCommand } from "../command";
+import { Command, NotifierCommand, PingCommand, SleepCommand } from "../command";
 import { BaseHandler } from "./baseHandler";
 import { getLogger } from "../util";
 import { BOT_OWNER, SLEEP_DURATION_HOURS, SLEEPING_PREFIX } from "../config/constants";
@@ -15,6 +15,7 @@ export class InteractionHandler extends BaseHandler {
         this.commands = [
             new PingCommand(),
             new SleepCommand(),
+            new NotifierCommand(),
         ];
     }
 
