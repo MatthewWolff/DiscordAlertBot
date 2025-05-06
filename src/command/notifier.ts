@@ -22,18 +22,18 @@ export class NotifierCommand implements Command {
                 .setName('add')
                 .setDescription('Add a game to track for a user')
                 .addUserOption(option =>
-                    option.setName('target')
-                        .setDescription('The user to add the game to')
+                    option.setName('watcher')
+                        .setDescription('The user to be notified about notifier game activity')
                         .setRequired(true)
                 )
                 .addUserOption(option =>
-                    option.setName('destination')
-                        .setDescription('The user\'s list to add to')
+                    option.setName('notifier')
+                        .setDescription('The user to watch for game activity')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
                     option.setName('game')
-                        .setDescription('The game to add')
+                        .setDescription('The game to watch for')
                         .setRequired(true)
                 )
         )
@@ -42,18 +42,18 @@ export class NotifierCommand implements Command {
                 .setName('remove')
                 .setDescription('Remove a game from tracking for a user')
                 .addUserOption(option =>
-                    option.setName('target')
-                        .setDescription('The user to remove the game from')
+                    option.setName('watcher')
+                        .setDescription('The user who is receiving notifications')
                         .setRequired(true)
                 )
                 .addUserOption(option =>
-                    option.setName('destination')
-                        .setDescription('The user\'s list to remove from')
+                    option.setName('notifier')
+                        .setDescription('The user whose presence updates are watched')
                         .setRequired(true)
                 )
                 .addStringOption(option =>
                     option.setName('game')
-                        .setDescription('The game to remove')
+                        .setDescription('The game to remove a subscription for')
                         .setRequired(true)
                 )
         )
@@ -64,7 +64,7 @@ export class NotifierCommand implements Command {
                 .addUserOption(option =>
                     option
                         .setName('user')
-                        .setDescription('User to check subscribers for (defaults to you)')
+                        .setDescription('User to check subscriptions for (defaults to you)')
                         .setRequired(false)
                 )
         )
@@ -75,7 +75,7 @@ export class NotifierCommand implements Command {
                 .addUserOption(option =>
                     option
                         .setName('user')
-                        .setDescription('User to check subscriptions for (defaults to you)')
+                        .setDescription('User to check subscribers for (defaults to you)')
                         .setRequired(false)
                 )
         );
@@ -89,27 +89,27 @@ export class NotifierCommand implements Command {
         if (!interaction.isChatInputCommand()) return;
 
         const subcommand = interaction.options.getSubcommand();
-        const subscriber = interaction.options.getUser('target');
-        const target = interaction.options.getUser('destination');
+        const watcher = interaction.options.getUser('watcher');
+        const notifier = interaction.options.getUser('notifier');
         const game = interaction.options.getString('game');
 
-        logger.debug(`Received notifier command options: ${subcommand} ${subscriber} ${target} ${game}`);
+        logger.debug(`Received notifier command options: ${subcommand} ${watcher} ${notifier} ${game}`);
 
         const database = await GameDatabase.load();
 
         switch (subcommand) {
             case 'add':
-                if (!subscriber || !target || !game) {
+                if (!watcher || !notifier || !game) {
                     await interaction.reply('Missing required arguments!');
                     return;
                 }
 
                 try {
-                    const added = await database.addSubscription(subscriber, target, game);
+                    const added = await database.addSubscription(watcher, notifier, game);
                     if (added) {
-                        await interaction.reply(`Added ${game} to ${subscriber.username}'s list for ${target.username}!`);
+                        await interaction.reply(`Added ${game} to ${watcher.username}'s list for ${notifier.username}!`);
                     } else {
-                        await interaction.reply(`${game} is already in ${subscriber.username}'s list for ${target.username}!`);
+                        await interaction.reply(`${game} is already in ${watcher.username}'s list for ${notifier.username}!`);
                     }
                 } catch (error) {
                     logger.error('Error adding subscription:', error);
@@ -118,17 +118,17 @@ export class NotifierCommand implements Command {
                 break;
 
             case 'remove':
-                if (!subscriber || !target || !game) {
+                if (!watcher || !notifier || !game) {
                     await interaction.reply('Missing required arguments!');
                     return;
                 }
 
                 try {
-                    const removed = await database.removeSubscription(subscriber, target, game);
+                    const removed = await database.removeSubscription(watcher, notifier, game);
                     if (removed) {
-                        await interaction.reply(`Removed ${game} from ${subscriber.username}'s list for ${target.username}!`);
+                        await interaction.reply(`Removed ${game} from ${watcher.username}'s list for ${notifier.username}!`);
                     } else {
-                        await interaction.reply(`${game} is not in ${subscriber.username}'s list for ${target.username}!`);
+                        await interaction.reply(`${game} is not in ${watcher.username}'s list for ${notifier.username}!`);
                     }
                 } catch (error) {
                     logger.error('Error removing subscription:', error);

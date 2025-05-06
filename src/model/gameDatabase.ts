@@ -72,13 +72,6 @@ export class GameDatabase {
     }
 
     /**
-     * Finds a user by either their User object
-     */
-    findUser(user: User): UserData | undefined {
-        return this.findUserByID(user.id)[1];
-    }
-
-    /**
      * Initializes a new user in the database
      */
     initializeUser(user: User): UserEntry {
@@ -89,7 +82,6 @@ export class GameDatabase {
                 subscribers: {}
             };
         }
-
 
         return this.getUserEntryFromId(user.id)
     }
