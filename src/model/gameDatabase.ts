@@ -17,6 +17,11 @@ export interface DatabaseStructure {
     };
 }
 
+export interface UserEntry {
+    username: string;
+    userData: UserData;
+}
+
 export class GameDatabase {
     private readonly data: DatabaseStructure;
 
@@ -76,60 +81,77 @@ export class GameDatabase {
     /**
      * Initializes a new user in the database
      */
-    initializeUser(username: string, userId: string): void {
-        if (!this.data.users[username]) {
-            this.data.users[username] = {
-                userId: userId,
+    initializeUser(user: User): UserEntry {
+        const databaseName = this.findUserByID(user.id);
+        if (!databaseName) {
+            this.data.users[user.username] = {
+                userId: user.id,
                 subscribers: {}
             };
         }
+
+
+        return this.getUserEntryFromId(user.id)
+    }
+
+    getUserEntryFromId(id: string): UserEntry {
+        const entry = Object.entries(this.data.users).find(([_, userData]) => userData.userId === id);
+        return {
+            username: entry[0],
+            userData: entry[1]
+        };
     }
 
     /**
      * Adds a game subscription
      */
-    addSubscription(subscriber: User, target: User, game: string): void {
+    async addSubscription(subscriber: User, target: User, game: string): Promise<boolean> {
         // Ensure both users exist in the database
-        this.initializeUser(subscriber.username, subscriber.id);
-        this.initializeUser(target.username, target.id);
+        const subscriberEntry = this.initializeUser(subscriber);
+        const targetData = this.initializeUser(target).userData;
 
-        const targetData = this.data.users[target.username];
-
-        if (!targetData.subscribers[subscriber.username]) {
-            targetData.subscribers[subscriber.username] = [];
+        if (!targetData.subscribers[subscriberEntry.username]) {
+            targetData.subscribers[subscriberEntry.username] = [];
         }
 
-        if (!targetData.subscribers[subscriber.username].includes(game)) {
-            targetData.subscribers[subscriber.username].push(game);
-            logger.debug(`Added subscription: ${subscriber.username} -> ${target.username}: ${game}`);
+        if (!targetData.subscribers[subscriberEntry.username].includes(game)) {
+            targetData.subscribers[subscriberEntry.username].push(game);
+            logger.debug(`Added subscription: ${subscriberEntry.username} -> ${target.username}: ${game}`);
+            await this.save();
+            return true;
         } else {
-            logger.debug(`Subscription already exists: ${subscriber.username} -> ${target.username}: ${game}`);
+            logger.debug(`Subscription already exists: ${subscriberEntry.username} -> ${target.username}: ${game}`);
+            return false;
         }
     }
 
     /**
      * Removes a game subscription
      */
-    removeSubscription(subscriber: User, target: User, game: string): void {
-        const targetData = this.data.users[target.username];
+    async removeSubscription(subscriber: User, target: User, game: string): Promise<boolean> {
+        const subscriberEntry = this.getUserEntryFromId(subscriber.id);
+        const targetData = this.getUserEntryFromId(target.id).userData;
 
-        if (!targetData?.subscribers[subscriber.username]) {
-            logger.debug(`No subscriptions found for ${subscriber.username} -> ${target.username}`);
-            return;
+        if (!targetData?.subscribers[subscriberEntry.username]) {
+            logger.debug(`No subscriptions found for ${subscriberEntry.username} -> ${target.username}`);
+            return false;
         }
 
-        const index = targetData.subscribers[subscriber.username].indexOf(game);
+        const index = targetData.subscribers[subscriberEntry.username].indexOf(game);
         if (index !== -1) {
-            targetData.subscribers[subscriber.username].splice(index, 1);
-            logger.debug(`Removed subscription: ${subscriber.username} -> ${target.username}: ${game}`);
+            targetData.subscribers[subscriberEntry.username].splice(index, 1);
+            logger.debug(`Removed subscription: ${subscriberEntry.username} -> ${target.username}: ${game}`);
 
             // Clean up empty subscriber entries
-            if (targetData.subscribers[subscriber.username].length === 0) {
-                delete targetData.subscribers[subscriber.username];
-                logger.debug(`Removed empty subscriber entry: ${subscriber.username} -> ${target.username}`);
+            if (targetData.subscribers[subscriberEntry.username].length === 0) {
+                delete targetData.subscribers[subscriberEntry.username];
+                logger.debug(`Removed empty subscriber entry: ${subscriberEntry.username} -> ${target.username}`);
             }
+            await this.save()
+            return true;
         } else {
-            logger.debug(`Game not found in subscriptions: ${subscriber.username} -> ${target.username}: ${game}`);
+            logger.debug(`Game not found in subscriptions: ${subscriberEntry.username} -> ${target.username}: ${game}`);
+            return false;
         }
     }
 

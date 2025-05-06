@@ -89,27 +89,28 @@ export class NotifierCommand implements Command {
         if (!interaction.isChatInputCommand()) return;
 
         const subcommand = interaction.options.getSubcommand();
-        const target = interaction.options.getUser('target');
-        const destination = interaction.options.getUser('destination');
+        const subscriber = interaction.options.getUser('target');
+        const target = interaction.options.getUser('destination');
         const game = interaction.options.getString('game');
 
-        logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`);
+        logger.debug(`Received notifier command options: ${subcommand} ${subscriber} ${target} ${game}`);
 
         const database = await GameDatabase.load();
 
         switch (subcommand) {
             case 'add':
-                if (!target || !destination || !game) {
+                if (!subscriber || !target || !game) {
                     await interaction.reply('Missing required arguments!');
                     return;
                 }
 
                 try {
-                    database.initializeUser(target.username, target.id);
-                    database.initializeUser(destination.username, destination.id);
-                    database.addSubscription(target, destination, game);
-                    await database.save();
-                    await interaction.reply(`Added ${game} to ${target.username}'s list for ${destination.username}!`);
+                    const added = await database.addSubscription(subscriber, target, game);
+                    if (added) {
+                        await interaction.reply(`Added ${game} to ${subscriber.username}'s list for ${target.username}!`);
+                    } else {
+                        await interaction.reply(`${game} is already in ${subscriber.username}'s list for ${target.username}!`);
+                    }
                 } catch (error) {
                     logger.error('Error adding subscription:', error);
                     await interaction.reply(`Failed to add game: ${error.message}`);
@@ -117,15 +118,18 @@ export class NotifierCommand implements Command {
                 break;
 
             case 'remove':
-                if (!target || !destination || !game) {
+                if (!subscriber || !target || !game) {
                     await interaction.reply('Missing required arguments!');
                     return;
                 }
 
                 try {
-                    database.removeSubscription(target, destination, game);
-                    await database.save();
-                    await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
+                    const removed = await database.removeSubscription(subscriber, target, game);
+                    if (removed) {
+                        await interaction.reply(`Removed ${game} from ${subscriber.username}'s list for ${target.username}!`);
+                    } else {
+                        await interaction.reply(`${game} is not in ${subscriber.username}'s list for ${target.username}!`);
+                    }
                 } catch (error) {
                     logger.error('Error removing subscription:', error);
                     await interaction.reply(`Failed to remove game: ${error.message}`);
