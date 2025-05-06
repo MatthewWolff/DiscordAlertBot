@@ -2,9 +2,8 @@ import { Presence, User } from "discord.js";
 import { ActivityType } from 'discord-api-types/v10';
 
 import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE } from "../config/constants";
-import userAlerts from '../config/gameMap.json'
 import { BaseHandler } from "./baseHandler";
-import { discordToString, filter, formatDate, getIntersection, getLogger } from "../util";
+import { discordToString, filter, formatDate, getIntersection, getLogger, loadDatabase } from "../util";
 
 const logger = getLogger("handler.PresenceUpdateHandler")
 
@@ -51,7 +50,7 @@ export class PresenceUpdateHandler extends BaseHandler {
     private async processAlerts(user: User, currentActivities: string[]) {
         logger.debug(`[processAlerts] Processing alerts for ${user.username} (${user.id})`);
 
-        const watchers = userAlerts[user.id];
+        const watchers = (await loadDatabase())[user.id];
         if (!watchers) {
             logger.debug(`[processAlerts] No watchers found for ${user.username}`);
             return;

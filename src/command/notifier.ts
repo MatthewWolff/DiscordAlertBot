@@ -5,10 +5,9 @@ import {
     EmbedBuilder,
     SlashCommandBuilder
 } from 'discord.js';
-import * as fs from 'fs/promises';
 
 import { Command } from "../model";
-import { getLogger } from "../util";
+import { getLogger, loadDatabase, saveDatabase } from "../util";
 
 const logger = getLogger("command.notifier");
 
@@ -61,46 +60,30 @@ export class NotifierCommand implements Command {
         )
         .addSubcommand(subcommand =>
             subcommand
-                .setName('list')
-                .setDescription('List tracked games')
+                .setName('get-subscriptions')
+                .setDescription('Show whose games you are tracking')
                 .addUserOption(option =>
                     option
                         .setName('user')
-                        .setDescription('User to show games for (leave empty to show all)')
+                        .setDescription('User to check subscribers for (defaults to you)')
+                        .setRequired(false)
+                )
+        )
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('get-subscribers')
+                .setDescription('Show who is notified about your gameplay')
+                .addUserOption(option =>
+                    option
+                        .setName('user')
+                        .setDescription('User to check subscriptions for (defaults to you)')
                         .setRequired(false)
                 )
         );
 
     async execute(interaction: ChatInputCommandInteraction<CacheType>): Promise<any> {
-        await interaction.reply("processing notifier command");
+        logger.debug(`Received notifier command: ${interaction.options.getSubcommand()}`);
         return handleNotifierCommand(interaction);
-    }
-}
-
-interface GameDatabase {
-    [userId: string]: {
-        [friendId: string]: string[];
-    };
-}
-
-// Helper functions
-async function loadDatabase(): Promise<GameDatabase> {
-    try {
-        logger.debug("Loading database...");
-        const data = await fs.readFile('./gameDatabase.json', 'utf-8');
-        return JSON.parse(data);
-    } catch (error) {
-        logger.error('Error loading database:', error);
-        return {};
-    }
-}
-
-async function saveDatabase(database: GameDatabase): Promise<void> {
-    try {
-        logger.debug("Saving database...");
-        await fs.writeFile('./gameDatabase.json', JSON.stringify(database, null, 2));
-    } catch (error) {
-        logger.error('Error saving database:', error);
     }
 }
 
@@ -113,12 +96,7 @@ export async function handleNotifierCommand(interaction: CommandInteraction) {
     const destination = interaction.options.getUser('destination');
     const game = interaction.options.getString('game');
 
-    logger.debug(`Received notifier command: ${subcommand} ${target} ${destination} ${game}`)
-
-    if (!target || !destination || !game) {
-        await interaction.reply('Missing required arguments!');
-        return;
-    }
+    logger.debug(`Received notifier command options: ${subcommand} ${target} ${destination} ${game}`)
 
     const database = await loadDatabase();
 
@@ -162,90 +140,102 @@ export async function handleNotifierCommand(interaction: CommandInteraction) {
             await saveDatabase(database);
             await interaction.reply(`Removed ${game} from ${target.username}'s list for ${destination.username}!`);
             break;
-        case 'list':
-            await handleList(interaction);
+        case 'get-subscriptions':
+            await handleGetSubscriptions(interaction);
+            break;
+        case 'get-subscribers':
+            await handleGetSubscribers(interaction);
             break;
     }
 }
 
-async function handleList(interaction: CommandInteraction) {
+async function handleGetSubscriptions(interaction: CommandInteraction) {
     if (!interaction.isChatInputCommand()) return;
 
-    const user = interaction.options.getUser('user');
+    const targetUser = interaction.options.getUser('user') || interaction.user;
     const database = await loadDatabase();
 
-    if (user) {
-        // Show games for specific user
-        const embed = new EmbedBuilder()
-            .setTitle(`Game Tracking for ${user.username}`)
-            .setColor('#0099ff')
-            .setTimestamp();
+    const embed = new EmbedBuilder()
+        .setTitle(`${targetUser.username}'s Subscriptions`)
+        .setColor('#0099ff')
+        .setTimestamp();
 
-        let foundAny = false;
+    let foundAny = false;
 
-        // Look through all destination users
-        for (const [destinationId, users] of Object.entries(database)) {
-            if (users[user.id]) {
-                foundAny = true;
-                const games = users[user.id].slice(1); // Remove the username entry
-                if (games.length > 0) {
+    // Look through all destination users
+    for (const [destinationId, users] of Object.entries(database)) {
+        if (users[targetUser.id]) {
+            foundAny = true;
+            const games = users[targetUser.id].slice(1); // Remove the username entry
+            if (games.length > 0) {
+                try {
                     const destinationUser = await interaction.client.users.fetch(destinationId);
                     embed.addFields({
-                        name: `Games tracked by ${destinationUser.username}`,
-                        value: games.join('\n') || 'No games',
-                        inline: true
-                    });
-                }
-            }
-        }
-
-        if (!foundAny) {
-            await interaction.reply(`No games are being tracked for ${user.username}`);
-            return;
-        }
-
-        await interaction.reply({ embeds: [embed] });
-
-    } else {
-        // Show all tracked games
-        const embed = new EmbedBuilder()
-            .setTitle('All Tracked Games')
-            .setColor('#0099ff')
-            .setTimestamp();
-
-        for (const [destinationId, users] of Object.entries(database)) {
-            try {
-                const destinationUser = await interaction.client.users.fetch(destinationId);
-                const trackedUsers = [];
-
-                for (const [userId, games] of Object.entries(users)) {
-                    if (userId === destinationId) continue; // Skip config entry
-
-                    const username = games[0]; // First entry is username
-                    const userGames = games.slice(1); // Remove username entry
-
-                    if (userGames.length > 0) {
-                        trackedUsers.push(`**${username}**:\n${userGames.join('\n')}`);
-                    }
-                }
-
-                if (trackedUsers.length > 0) {
-                    embed.addFields({
-                        name: `${destinationUser.username}'s Tracked Games`,
-                        value: trackedUsers.join('\n\n'),
+                        name: `Notified when ${destinationUser.username} plays:`,
+                        value: games.join('\n'),
                         inline: false
                     });
+                } catch (error) {
+                    console.error(`Error fetching user ${destinationId}:`, error);
                 }
-            } catch (error) {
-                console.error(`Error fetching user ${destinationId}:`, error);
             }
         }
-
-        if (embed.data.fields?.length === 0) {
-            await interaction.reply('No games are currently being tracked.');
-            return;
-        }
-
-        await interaction.reply({ embeds: [embed] });
     }
+
+    if (!foundAny) {
+        await interaction.reply(`${targetUser.username}'s has no subscriptions`);
+        return;
+    }
+
+    await interaction.reply({ embeds: [embed] });
 }
+
+async function handleGetSubscribers(interaction: CommandInteraction) {
+    if (!interaction.isChatInputCommand()) return;
+
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+    const database = await loadDatabase();
+
+    // Check if the user has any subscriptions
+    const userNotifications = database[targetUser.id];
+
+    if (!userNotifications) {
+        await interaction.reply(`${targetUser.username} has no notifications set!`);
+        return;
+    }
+
+    const embed = new EmbedBuilder()
+        .setTitle(`Users tracking ${targetUser.username}'s games`)
+        .setColor('#00ff99')
+        .setTimestamp();
+
+    let hasEntries = false;
+
+    // Iterate through all users in the subscription list
+    for (const [userId, games] of Object.entries(userNotifications)) {
+        if (userId === targetUser.id) continue; // Skip config entry
+
+        const gamesList = games.slice(1); // Remove the username entry
+        if (gamesList.length > 0) {
+            hasEntries = true;
+            try {
+                const subscribedUser = await interaction.client.users.fetch(userId);
+                embed.addFields({
+                    name: `${subscribedUser.username} will be notified about:`,
+                    value: gamesList.join('\n'),
+                    inline: false
+                });
+            } catch (error) {
+                console.error(`Error fetching user ${userId}:`, error);
+            }
+        }
+    }
+
+    if (!hasEntries) {
+        await interaction.reply(`${targetUser.username} has no notifications set`);
+        return;
+    }
+
+    await interaction.reply({ embeds: [embed] });
+}
+

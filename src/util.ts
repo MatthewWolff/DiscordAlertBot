@@ -5,6 +5,11 @@ import { provider } from "./config/logConfig";
 import { Message } from "discord.js";
 import { MessageCore } from "./model";
 import { DIRECT_MESSAGE_CHANNEL_TYPE } from "./config/constants";
+import { GameDatabase } from "./model/gameDatabase";
+import fs from "fs/promises";
+import * as path from 'path';
+
+const logger = getLogger("utils");
 
 export function getLogger(name: string): Logger {
     return provider.getLogger(name);
@@ -48,4 +53,25 @@ export function formatDate(timestamp: number): string {
 export async function filter(arr, callback) {
     const fail = Symbol()
     return (await Promise.all(arr.map(async item => (await callback(item)) ? item : fail))).filter(i => i !== fail)
+}
+
+// Helper functions
+export async function loadDatabase(): Promise<GameDatabase> {
+    try {
+        logger.debug("Loading database...");
+        const data = await fs.readFile('src/config/gameMap.json', 'utf-8');
+        return JSON.parse(data);
+    } catch (error) {
+        logger.error('Error loading database:', error);
+        return {};
+    }
+}
+
+export async function saveDatabase(database: GameDatabase): Promise<void> {
+    try {
+        logger.debug("Saving database...");
+        await fs.writeFile('src/config/gameMap.json', JSON.stringify(database, null, 2));
+    } catch (error) {
+        logger.error('Error saving database:', error);
+    }
 }
