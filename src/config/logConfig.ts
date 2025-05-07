@@ -5,7 +5,7 @@ export const provider = Log4TSProvider.createProvider("DiscordAlertBotProvider",
     /* Specify the various group expressions to match against */
     groups: [
         { expression: new RegExp("helper.+"), level: LogLevel.Warn },
-        { expression: new RegExp("command.+"), level: LogLevel.Debug },
+        { expression: new RegExp("command.+"), level: LogLevel.Info },
         { expression: new RegExp("handler.+"), level: LogLevel.Info },
         { expression: new RegExp("service.+"), level: LogLevel.Info },
         { expression: new RegExp("utils.+"), level: LogLevel.Info },

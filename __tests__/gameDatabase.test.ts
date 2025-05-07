@@ -1,4 +1,4 @@
-import { DatabaseStructure, GameDatabase } from '../src/model/gameDatabase';
+import { DatabaseStructure, GameDatabase } from '../src/model';
 import { User } from 'discord.js';
 import * as fs from 'fs/promises';
 

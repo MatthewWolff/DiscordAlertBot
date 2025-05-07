@@ -1,5 +1,5 @@
 // __tests__/messageHandler.test.ts
-import { MessageHandler } from '../src/handler/messageHandler';
+import { MessageHandler } from '../src/handler';
 import { Client, DMChannel, Message, User } from 'discord.js';
 import { BOT_OWNER } from '../src/config/constants';
 
