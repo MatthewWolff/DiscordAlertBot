@@ -3,7 +3,7 @@ import { ActivityType } from 'discord-api-types/v10';
 
 import { BOT_OWNER, DESKTOP, SLEEPING_PREFIX, STATUS_OFFLINE } from "../config/constants";
 import { BaseHandler } from "./baseHandler";
-import { discordToString, filter, formatDate, getIntersection, getLogger } from "../util";
+import { discordToString, filter, formatDate, getIntersection, getLogger, mapKeysAsync } from "../util";
 import { GameDatabase, UserData } from "../model";
 
 const logger = getLogger("handler.PresenceUpdateHandler");
@@ -60,27 +60,29 @@ export class PresenceUpdateHandler extends BaseHandler {
         }
 
         // Get all subscribers for this user
-        const subscribers = database.getSubscribers(user);
+        const subscribersRaw = database.getSubscribers(user);
+        const subscribers = await mapKeysAsync(subscribersRaw, async (id) => {
+            return (await this.getUser(id));
+        });
 
         // Process each subscriber
-        for (const [subscriberName, subscribedGames] of subscribers) {
-            logger.debug(`[processAlerts] Processing subscriber: ${subscriberName}`);
+        for (const [subscriber, subscribedGames] of subscribers) {
+            logger.debug(`[processAlerts] Processing subscriber: ${subscriber.username}`);
 
             const matchedGames = getIntersection(subscribedGames, currentActivities);
             logger.debug(`[processAlerts] Matched games: ${matchedGames.join(', ')}`);
 
             if (matchedGames.length === 0) {
-                logger.debug(`[processAlerts] No matching games for subscriber ${subscriberName}`);
+                logger.debug(`[processAlerts] No matching games for subscriber ${subscriber.username}`);
                 continue;
             }
 
-            const subscriberData: UserData = database.findUserByDatabaseName(subscriberName);
+            const subscriberData: UserData = database.findUserByID(subscriber.id);
             if (!subscriberData) {
-                logger.warn(`[processAlerts] Subscriber ${subscriberName} not found in database`);
+                logger.warn(`[processAlerts] Subscriber ${subscriber.username} not found in database`);
                 continue;
             }
 
-            const subscriber: User = await this.getUser(subscriberData.userId);
             (await filter(matchedGames, (game: string) => this.canMessageUserAboutGame(subscriber, game)))
                 .map(game => {
                     logger.info(`[processAlerts] Alerting ${subscriber.username} that ${user.username} is playing ${game}`);

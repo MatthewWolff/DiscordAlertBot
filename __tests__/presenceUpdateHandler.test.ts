@@ -97,9 +97,9 @@ describe('PresenceUpdateHandler', () => {
 
         mockDatabase.getSubscribers.mockImplementation((user) =>
             new Map(Object.entries({
-                'Tyler': ['Marvel Rivals'],
-                'Bryan': ['Marvel Rivals'],
-                'MJ': ['Marvel Rivals']
+                '265610485812953088': ['Marvel Rivals'],
+                '225142521024610304': ['Marvel Rivals'],
+                '226129559303487488': ['Marvel Rivals']
             }))
         );
 
